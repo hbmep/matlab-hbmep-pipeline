@@ -1,0 +1,7 @@
+[submodule "auxf/hbmep"]
+	path = auxf/hbmep
+	url = ../hbmep
+
+[submodule "auxf/matlab-toml"]
+	path = auxf/matlab-toml
+	url = ../../g-s-k/matlab-toml
