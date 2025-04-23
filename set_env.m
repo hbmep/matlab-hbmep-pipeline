@@ -17,6 +17,7 @@ setenv('D_TEMP', tempdir);  % session persistent tempdir
 
 addpath(genpath(fullfile(getenv('D_GIT'), 'auxf', 'internal')));
 addpath(genpath(fullfile(getenv('D_GIT'), 'auxf', 'matlab-toml')));
+addpath(genpath(fullfile(getenv('D_GIT'), 'loaders')));
 if isempty(which('dnc_set_env'))
     % rely on defaults above
 else
