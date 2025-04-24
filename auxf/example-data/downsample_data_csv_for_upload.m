@@ -7,8 +7,10 @@ addpath(fullfile('..', '..'))
 set_env;
 
 %%
+fs_new = 500;
+str_keep_side = 'R';
 f_data = 'SUBID_V1_IMM_data.csv';
-p_data = fullfile('..', 'dnc_example-data', f_data);
+p_data = fullfile('..', 'example-data-full', f_data);
 p_config = replace(p_data, '_data.csv', '_meta.toml');
 p_trigger = replace(p_data, '_data.csv', '_trigger.csv');
 
@@ -18,7 +20,6 @@ trigger = table2array(readtable(p_trigger));
 cfg_aq = toml.map_to_struct(toml.read(p_config));
 
 %%
-fs_new = 500;
 fs = cfg_aq.daq.fs;
 cfg_out = cfg_aq;
 cfg_out.daq.fs = fs_new;
@@ -54,6 +55,14 @@ trigger = trigger(1:n_trig, :);
 % just make the trigger channel (a bit) more realistic again
 data_ds(:, ix_trigger) = filter(ones(1, 3), 1, data_ds(:, ix_trigger));
 data_ds(:, ix_trigger) = data_ds(:, ix_trigger) * 5.0;
+
+%%
+column_name = string(cfg_aq.data.column_name);
+
+case_keep_columns = column_name.startsWith(str_keep_side) | column_name == cfg_aq.ramp.trigger;
+
+data_ds = data_ds(:, case_keep_columns);
+cfg_out.data.column_name = cfg_out.data.column_name(case_keep_columns);
 
 %% save
 % data
