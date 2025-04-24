@@ -19,17 +19,17 @@ MATLAB pre-processing and interface to **hbMEP**, a hierarchical Bayesian packag
 
 ```bash
 # 1. Clone this repository
-git clone https://github.com/hbmep/matlab-hbmep-pipeline.git
+git clone --recurse-submodules https://github.com/hbmep/matlab-hbmep-pipeline.git
 navigate to matlab-hbmep-pipeline/auxf/hbmep
 
 # 2. Set up Python environment for hbMEP (asusming you have conda/miniconda installed)
 conda create -n python-311 python=3.11 -y
 conda activate python-311
 python -m venv .venv
-conda deactivate           # deactivate python-311 conda env
-conda deactivate           # deactivate default conda env
-pip install --upgrade pip
-source .venv/bin/activate  # OR .venv\Scripts\activate.bat (if windows)
+conda deactivate
+conda deactivate
+.venv\Scripts\activate.bat
+(replace the line above with source .venv/bin/activate if on linux)
 
 # 3. Install hbMEP locally
 pip install .
@@ -38,13 +38,14 @@ pip install .
 ## Usage
 
 Once hbMEP is installed, you can call the main MATLAB wrapper:
+1. Open up matlab and navigate to the root matlab-hbmep-pipeline directory 
+2. analyse_ramp('loader_bronxva', 'example-data', ["RECR", "RFCR", "RAPB", "RADM", "RFDI"]);
 
 ```matlab
 % Arguments:
-%   loaderName    — name of your data-loading function (e.g. 'loader_bronxva' is an existing one)
-%   dataDirectory — path to the folder containing your data (can be set to 'example-data' to get started)
-%   muscleList    — cell array of muscles to analyze (reflecting a subset of names in config file of data)
-analyse_ramp('loader_bronxva', 'example-data', ["RECR", "RFCR", "RAPB", "RADM", "RFDI"]);
+%   h_loader    — name of your data-loading function in loaders directory (e.g. 'loader_bronxva' is an existing one)
+%   p_data — path to the main data.csv
+%   response    — string array of muscles to analyze (reflecting a subset of names in config file of data)
 ```
 
 This will:

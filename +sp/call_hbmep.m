@@ -35,4 +35,7 @@ status = system(command);
 if status ~= 0
     error('System call failed. Check the inputs.');
 end
+fprintf('Results written to:\n')
+fprintf('%s', d_output);
+fprintf('\n---\n');
 end

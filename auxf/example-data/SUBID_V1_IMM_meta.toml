@@ -4,12 +4,9 @@ fs = 500
 [data]
 column_name = ["RTA", "RBB", "RTB", "RFCR", "RECR", "RAPB", "RFDI", "RADM", "trigger_tms"]
 column_type = ["emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "force", "emg", "emg", "emg", "trigger", "trigger"]
+
 [data.units]
 emg = "mV"
-
-
-[participant]
-id = "X"
 
 [ramp]
 trigger = "trigger_tms"

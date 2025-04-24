@@ -1,29 +1,36 @@
 function [raw_table, trigger_table, cfg_aq] = loader_bronxva(p_data, varargin)
+% This produces:
+% raw_table, trigger_table, cfg_aq
+% necessary for subsequent processing
+% this version is specific for the recording setup used in Noam Harel's lab
+% at the Bronx VA
+
+
+%%
 p_trigger = replace(p_data, '_data.csv', '_trigger.csv');
 p_config = replace(p_data, '_data.csv', '_meta.toml');
 raw_table = readtable(p_data);
 trigger_table = readtable(p_trigger);
-cfg_aq = toml.map_to_struct(toml.read(p_config));
-[~, fp, ~] = fileparts(p_data);
-cfg_aq.filename = fp;
+cfg = toml.map_to_struct(toml.read(p_config));
+
 
 %%
-raw_table.Properties.VariableNames = string(cfg_aq.data.column_name);
-trigger_table.Properties.VariableNames = string(cfg_aq.trigger.column_name);
+raw_table.Properties.VariableNames = string(cfg.data.column_name);
+trigger_table.Properties.VariableNames = string(cfg.trigger.column_name);
 trigger_table.participant(:) = "X";
-trigger_table.condition(:) = string(cfg_aq.trigger.column_name);
+trigger_table.condition(:) = string(cfg.trigger.column_name);
 
-raw_table.(cfg_aq.ramp.trigger) = raw_table.(cfg_aq.ramp.trigger) > 2.5;
-raw_table.(cfg_aq.ramp.trigger) = [0; diff(raw_table.(cfg_aq.ramp.trigger))] > 0;
+raw_table.(cfg.ramp.trigger) = raw_table.(cfg.ramp.trigger) > 2.5;
+raw_table.(cfg.ramp.trigger) = [0; diff(raw_table.(cfg.ramp.trigger))] > 0;
 
 for ix_channel = 1:length(raw_table.Properties.VariableNames)
     str_channel = string(raw_table.Properties.VariableNames(ix_channel));
-    str_type = string(cfg_aq.data.column_type(str_channel == string(cfg_aq.data.column_name)));
-    if str_channel == cfg_aq.ramp.trigger
+    str_type = string(cfg.data.column_type(str_channel == string(cfg.data.column_name)));
+    if str_channel == cfg.ramp.trigger
         continue;
     end
 
-    if str_channel == cfg_aq.ramp.trigger
+    if str_channel == cfg.ramp.trigger
         continue;
     end
     if str_type == "emg"
@@ -31,8 +38,8 @@ for ix_channel = 1:length(raw_table.Properties.VariableNames)
         raw_table.(str_channel) = raw_table.(str_channel) - median(raw_table.(str_channel));
 
         % deal with units
-        if isfield(cfg_aq.data.units, str_type)
-            str_type_units = cfg_aq.data.units.(str_type);
+        if isfield(cfg.data.units, str_type)
+            str_type_units = cfg.data.units.(str_type);
             if str_type_units == "mV"  % convert to uV
                 raw_table.(str_channel) = raw_table.(str_channel) * 1e-3;
             else
@@ -42,5 +49,14 @@ for ix_channel = 1:length(raw_table.Properties.VariableNames)
     end
 end
 
-assert(size(trigger_table, 1) == sum(raw_table.(cfg_aq.ramp.trigger)), 'Number of intensities and triggers are different!');
+assert(size(trigger_table, 1) == sum(raw_table.(cfg.ramp.trigger)), 'Number of intensities and triggers are different!');
+
+
+%% Minimum config information:
+cfg_aq = struct;
+[~, cfg_aq.filename, ~] = fileparts(p_data);  % filename (to name directories)
+cfg_aq.daq.fs = double(cfg.daq.fs);  % sampling rate
+cfg_aq.ramp.trigger = cfg.ramp.trigger;  % the name of the channel where the sampling rate is
+
+
 end
