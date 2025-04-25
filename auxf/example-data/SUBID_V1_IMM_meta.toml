@@ -13,7 +13,7 @@ emg = "mV"
 
 [ramp]
 trigger = "trigger_tms"
-units = 'MSO (%)'
+units = 'P-MSO'
 
 [trigger]
 column_name = ["intensity"]

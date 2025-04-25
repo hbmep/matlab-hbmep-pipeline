@@ -1,4 +1,4 @@
-function [raw_table, trigger_table, cfg_aq] = loader_bronxva(p_data, varargin)
+function [raw_table, trigger_table, cfg_aq] = loader_bronxva(p_data, cfg_load)
 % This produces:
 % raw_table, trigger_table, cfg_aq
 % necessary for subsequent processing
@@ -23,7 +23,7 @@ if isfield(cfg, 'participant')
         trigger_table.participant(:) = string(cfg.participant.id);
     end
 end
-trigger_table.condition(:) = string(cfg.trigger.column_name);
+trigger_table.condition(:) = "Y";  % placeholder feature
 
 raw_table.(cfg.ramp.trigger) = raw_table.(cfg.ramp.trigger) > 2.5;
 raw_table.(cfg.ramp.trigger) = [0; diff(raw_table.(cfg.ramp.trigger))] > 0;
@@ -45,8 +45,8 @@ for ix_channel = 1:length(raw_table.Properties.VariableNames)
         % deal with units
         if isfield(cfg.data.units, str_type)
             str_type_units = cfg.data.units.(str_type);
-            if str_type_units == "mV"  % convert to uV
-                raw_table.(str_channel) = raw_table.(str_channel) * 1e-3;
+            if str_type_units == "mV"  % MEP size should be in mV at this stage
+                raw_table.(str_channel) = raw_table.(str_channel);
             else
                 error('Units not handled.')
             end
@@ -62,7 +62,6 @@ cfg_aq = struct;
 [~, cfg_aq.filename, ~] = fileparts(p_data);  % filename (to name directories)
 cfg_aq.daq.fs = double(cfg.daq.fs);  % sampling rate
 cfg_aq.ramp.trigger = cfg.ramp.trigger;  % the name of the channel where the sampling rate is
-cfg.ramp.units = cfg.ramp.units;  % e.g. mA or %MSO
-
+cfg_aq.ramp.units = cfg.ramp.units;  % e.g. mA or %MSO
 
 end

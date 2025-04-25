@@ -1,2 +1,5 @@
 dnc_*
 /auxf/example-data-full/
+/+sp/__pycache__/
+/+sp/.idea/
+/+sp/hbmep_local/__pycache__/

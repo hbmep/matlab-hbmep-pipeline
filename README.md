@@ -52,9 +52,18 @@ This will:
 
 1. Read EMG, trigger, intensity, and config files.  
 2. Build a MATLAB table for each muscle.  
-3. Fit the recruitment curve model via hbMEP.  
+3. Fit the recruitment curve model via hbMEP. The current model being used is the version used in [brain-spinal-pairing](https://github.com/jrmxn/brain-spinal-pairing)
 4. Return summary output (posterior distributions, diagnostic plots).
 
+## Notes
+
+You can change to pk-pk MEP size like this:
+
+```matlab
+cfg_proc = struct;
+cfg_proc.table.units_mepsize = 'mV';  % deafault: µVs which is for AUC
+analyse_ramp('loader_bronxva', 'example-data', ["RECR", "RFCR", "RAPB", "RADM", "RFDI"], cfg_proc);
+```
 
 ## License
 
