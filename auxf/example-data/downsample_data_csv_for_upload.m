@@ -63,6 +63,7 @@ case_keep_columns = column_name.startsWith(str_keep_side) | column_name == cfg_a
 
 data_ds = data_ds(:, case_keep_columns);
 cfg_out.data.column_name = cfg_out.data.column_name(case_keep_columns);
+cfg_out.data.column_type = cfg_out.data.column_type(case_keep_columns);
 
 %% save
 % data

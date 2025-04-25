@@ -1,15 +1,19 @@
+[participant]
+# id = 'ABC01'  # can be included if wanted
+
 [daq]
 fs = 500
 
 [data]
 column_name = ["RTA", "RBB", "RTB", "RFCR", "RECR", "RAPB", "RFDI", "RADM", "trigger_tms"]
-column_type = ["emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "force", "emg", "emg", "emg", "trigger", "trigger"]
+column_type = ["emg", "emg", "emg", "emg", "emg", "emg", "emg", "emg", "trigger"]
 
 [data.units]
 emg = "mV"
 
 [ramp]
 trigger = "trigger_tms"
+units = 'MSO (%)'
 
 [trigger]
 column_name = ["intensity"]
