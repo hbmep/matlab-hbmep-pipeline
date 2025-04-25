@@ -18,6 +18,11 @@ cfg = toml.map_to_struct(toml.read(p_config));
 raw_table.Properties.VariableNames = string(cfg.data.column_name);
 trigger_table.Properties.VariableNames = string(cfg.trigger.column_name);
 trigger_table.participant(:) = "X";
+if isfield(cfg, 'participant')
+    if isfield(cfg.participant, 'id')
+        trigger_table.participant(:) = string(cfg.participant.id);
+    end
+end
 trigger_table.condition(:) = string(cfg.trigger.column_name);
 
 raw_table.(cfg.ramp.trigger) = raw_table.(cfg.ramp.trigger) > 2.5;
@@ -57,6 +62,7 @@ cfg_aq = struct;
 [~, cfg_aq.filename, ~] = fileparts(p_data);  % filename (to name directories)
 cfg_aq.daq.fs = double(cfg.daq.fs);  % sampling rate
 cfg_aq.ramp.trigger = cfg.ramp.trigger;  % the name of the channel where the sampling rate is
+cfg.ramp.units = cfg.ramp.units;  % e.g. mA or %MSO
 
 
 end
