@@ -1,4 +1,4 @@
-function p_csv_out = write_ramp_tables(raw_table, trigger_table, cfg_loaded, cfg_table)
+function [p_csv_out, cfg_table] = write_ramp_tables(raw_table, trigger_table, cfg_loaded, cfg_table)
 if not(isfield(cfg_table, 'slice'))
     cfg_table.slice = struct(...
         't_min'      , -10e-3, ...
@@ -8,11 +8,15 @@ if not(isfield(cfg_table, 'slice'))
         );
 end
 if not(isfield(cfg_table, 'units_mepsize'))
-    cfg_table.mep_size = 'µVs';
+    cfg_table.units_mepsize = 'µVs';
 end
 
 %%
 d_proc = fullfile(getenv('D_PROC'));
+if isempty(d_proc)
+    % fall back on D_MHBMEP_PROC if there is no D_PROC
+    d_proc = fullfile(getenv('D_MHBMEP_PROC'));
+end
 d_out = fullfile(d_proc, cfg_loaded.filename);
 p_csv_out = fullfile(d_out, sprintf('%s_mepsize.csv', cfg_loaded.filename));
 if not(exist(d_out, 'dir') == 7)

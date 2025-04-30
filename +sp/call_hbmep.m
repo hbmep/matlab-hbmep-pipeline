@@ -15,15 +15,15 @@ response = response.join(' ');
 q = @(x) ['"', x, '"'];
 
 % Paths and arguments
-d_hbmep = fullfile(getenv('D_GIT'), 'auxf', 'hbmep', '.venv');
+d_hbmep = fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'hbmep', '.venv');
 if ispc
     p_hbmep = q(fullfile(d_hbmep, 'Scripts', 'python.exe'));
 else
     p_hbmep = q(fullfile(d_hbmep, 'bin', 'python'));
 end
 
-p_hbmep_function = q(fullfile(getenv('D_GIT'), '+sp', 'hbmep_caller.py'));
-p_hbmep_config = q(fullfile(getenv('D_GIT'), 'auxf', 'internal', 'hbmep_config.toml'));
+p_hbmep_function = q(fullfile(getenv('D_MHBMEP_GIT'), '+sp', 'hbmep_caller.py'));
+p_hbmep_config = q(fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'internal', 'hbmep_config.toml'));
 d_output = q(strrep(p_csv, '.csv', sprintf('_hbmep%s', cfg_hbmep.es)));
 p_csv = q(p_csv);
 d_output = q(d_output);

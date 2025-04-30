@@ -4,7 +4,7 @@
 %%
 clear;
 addpath(fullfile('..', '..'))
-set_env;
+set_env_mhbmep;
 
 %%
 fs_new = 500;

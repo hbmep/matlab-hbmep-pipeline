@@ -1,7 +1,7 @@
 clear;
 addpath(fullfile('..', '..'));
 addpath(genpath(fullfile('..', '..', 'auxf')));
-set_env;
+set_env_mhbmep;
 %%
 o_data = '2024-11-19';
 f_data = 'P02_s01r02_2024-11-19T142059';

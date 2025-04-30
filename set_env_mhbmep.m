@@ -1,4 +1,4 @@
-function set_env
+function set_env_mhbmep
 if ispc
     userDir = winqueryreg('HKEY_CURRENT_USER',...
         ['Software\Microsoft\Windows\CurrentVersion\' ...
@@ -10,15 +10,15 @@ end
 
 % Defaults
 project = 'matlab-hbmep-pipeline';
-setenv('D_USER', userDir);
-setenv('D_PROC', fullfile(userDir, project, 'proc'));
-setenv('D_GIT', fileparts(mfilename("fullpath")));
-setenv('D_TEMP', tempdir);  % session persistent tempdir
+setenv('D_MHBMEP_USER', userDir);
+setenv('D_MHBMEP_PROC', fullfile(userDir, project, 'proc'));
+setenv('D_MHBMEP_GIT', fileparts(mfilename("fullpath")));
+setenv('D_MHBMEP_TEMP', tempdir);  % session persistent tempdir
 
-addpath(genpath(fullfile(getenv('D_GIT'), 'auxf', 'internal')));
-addpath(genpath(fullfile(getenv('D_GIT'), 'auxf', 'matlab-toml')));
-addpath(genpath(fullfile(getenv('D_GIT'), 'loaders')));
-if isempty(which('dnc_set_env'))
+addpath(genpath(fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'internal')));
+addpath(genpath(fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'matlab-toml')));
+addpath(genpath(fullfile(getenv('D_MHBMEP_GIT'), 'loaders')));
+if isempty(which('dnc_set_env_mhbmep'))
     % rely on defaults above
 else
     dnc_set_env(userDir);
