@@ -9,7 +9,7 @@ from hbmep_local.model import RectifiedLogistic  # from hbmep.model.tms import R
 from hbmep.model.utils import Site as site
 
 
-def main(p_hbmep_config, p_csv, response, d_output, p_postproc):
+def main(p_hbmep_config, p_csv, response, d_output, p_postproc, postprocessing_helper):
     # Load hbMEP configuration
     cfg_hbmep = Config(toml_path=p_hbmep_config)
     dfo = pd.read_csv(str(p_csv))
@@ -118,10 +118,12 @@ def main(p_hbmep_config, p_csv, response, d_output, p_postproc):
         postproc_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(postproc_module)
         postproc_module.postprocess(
+            model=model,
             df=df,
             encoder_dict=encoder_dict,
             posterior_samples=posterior_samples,
             prediction_df=prediction_df,
             posterior_predictive=posterior_predictive,
+            postprocessing_helper=postprocessing_helper,
         )
 

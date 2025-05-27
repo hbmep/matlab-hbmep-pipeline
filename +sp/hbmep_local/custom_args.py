@@ -12,6 +12,8 @@ args = SimpleNamespace(
     response=['RAPB', 'RFDI'],
     d_output=HOME / 'matlab-hbmep-pipeline' / 'testing',
     p_postproc = '',
+    units_mepsize = 'A. U.',
+    units_intensity = 'A. U.',
 )
 
 p_hbmep_config = args.p_hbmep_config,

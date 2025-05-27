@@ -23,10 +23,16 @@ if __name__ == "__main__":
 
         args = parser.parse_args()
 
+    postprocessing_helper = {}
+    postprocessing_helper['units_mepsize'] = args.units_mepsize
+    postprocessing_helper['units_intensity'] = args.units_intensity
+    postprocessing_helper['d_output'] = args.d_output
+
     run_model.main(
         p_hbmep_config=args.p_hbmep_config,
         p_csv=args.p_csv,
         response=args.response,
         d_output=args.d_output,
-        p_postproc=args.p_postproc
+        p_postproc=args.p_postproc,
+        postprocessing_helper=postprocessing_helper,
     )
