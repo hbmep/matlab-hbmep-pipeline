@@ -19,6 +19,7 @@ if __name__ == "__main__":
         parser.add_argument("--d_output", required=True, help="Output directory for model results.")
         parser.add_argument("--units_intensity", default="A. U.", help="Units of intensity.")
         parser.add_argument("--units_mepsize", default="A. U.", help="Units of MEP size.")
+        parser.add_argument("--p_postproc", default="", help="Path to post-processing module.")
 
         args = parser.parse_args()
 
@@ -26,5 +27,6 @@ if __name__ == "__main__":
         p_hbmep_config=args.p_hbmep_config,
         p_csv=args.p_csv,
         response=args.response,
-        d_output=args.d_output
+        d_output=args.d_output,
+        p_postproc=args.p_postproc
     )

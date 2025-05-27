@@ -11,12 +11,14 @@ args = SimpleNamespace(
     p_csv=HOME / 'matlab-hbmep-pipeline/proc/SUBID_V1_IMM_data/SUBID_V1_IMM_data_mepsize.csv',
     response=['RAPB', 'RFDI'],
     d_output=HOME / 'matlab-hbmep-pipeline' / 'testing',
+    p_postproc = '',
 )
 
 p_hbmep_config = args.p_hbmep_config,
 p_csv = args.p_csv,
 response = args.response,
 d_output = args.d_output
+p_postproc = args.p_postproc
 
 dnc_custom_args_path = Path(__file__).parent / 'dnc_custom_args.py'
 

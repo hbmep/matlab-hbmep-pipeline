@@ -65,6 +65,9 @@ cfg_proc.table.units_mepsize = 'mV';  % deafault: µVs which is for AUC
 analyse_ramp('loader_bronxva', 'example-data', ["RECR", "RFCR", "RAPB", "RADM", "RFDI"], cfg_proc);
 ```
 
+## Testing
+To make testing more efficient, the python functions can be called directly from within without system calls. hbmep_caller.py is still used, but it will instead load arguments from custom_args.py. This will in turn load arguments from dnc_custom_args.py if it exists (which is a user created function).
+
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE) for full text.

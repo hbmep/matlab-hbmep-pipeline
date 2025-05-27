@@ -1,6 +1,7 @@
 import pickle
 import pandas as pd
 import numpy as np
+import importlib.util
 from pathlib import Path
 import arviz as az
 from hbmep.config import Config
@@ -8,7 +9,7 @@ from hbmep_local.model import RectifiedLogistic  # from hbmep.model.tms import R
 from hbmep.model.utils import Site as site
 
 
-def main(p_hbmep_config, p_csv, response, d_output):
+def main(p_hbmep_config, p_csv, response, d_output, p_postproc):
     # Load hbMEP configuration
     cfg_hbmep = Config(toml_path=p_hbmep_config)
     dfo = pd.read_csv(str(p_csv))
@@ -107,3 +108,20 @@ def main(p_hbmep_config, p_csv, response, d_output):
     summary = az.summary(inference_data, hdi_prob=0.95)
     summary.to_csv(Path(model.build_dir) / 'summary.csv')
     print('Done.')
+
+    if p_postproc:
+        p_postproc = Path(p_postproc)
+        if not p_postproc.is_file():
+            raise FileNotFoundError(f"Post-processing script not found: {p_postproc}")
+        # load the module from an arbitrary file path
+        spec = importlib.util.spec_from_file_location("postproc_module", str(p_postproc))
+        postproc_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(postproc_module)
+        postproc_module.postprocess(
+            df=df,
+            encoder_dict=encoder_dict,
+            posterior_samples=posterior_samples,
+            prediction_df=prediction_df,
+            posterior_predictive=posterior_predictive,
+        )
+
