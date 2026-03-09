@@ -18,7 +18,7 @@ response = response.join(' ');
 q = @(x) ['"', x, '"'];
 
 % Paths and arguments
-d_hbmep = fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'hbmep', '.venv');
+d_hbmep = fullfile(fileparts(getenv('D_MHBMEP_GIT')), 'hbmep', '.venv');
 if ispc
     p_hbmep = q(fullfile(d_hbmep, 'Scripts', 'python.exe'));
 else
