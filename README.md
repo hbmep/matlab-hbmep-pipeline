@@ -18,21 +18,20 @@ MATLAB pre-processing and interface to **hbMEP**, a hierarchical Bayesian packag
 ## Installation
 
 ```bash
-# 1. Clone this repository
-git clone --recurse-submodules https://github.com/hbmep/matlab-hbmep-pipeline.git
-navigate to matlab-hbmep-pipeline/auxf/hbmep
+# 1. navigate to this location:
+cd matlab-hbmep-pipeline
 
-# 2. Set up Python environment for hbMEP (asusming you have conda/miniconda installed)
+# 2. Set up Python environment for hbMEP (assuming you have conda/miniconda installed)
 conda create -n python-311 python=3.11 -y
 conda activate python-311
-python -m venv .venv
-conda deactivate
-conda deactivate
-.venv\Scripts\activate.bat
-(replace the line above with source .venv/bin/activate if on linux)
 
-# 3. Install hbMEP locally
-pip install .
+# 3. Create and set up the virtual environment in the hbmep library folder
+python -m venv ../hbmep/.venv
+..\hbmep\.venv\Scripts\activate.bat
+
+# 4. Install hbMEP and specific stable versions for Windows x64 compatibility
+pip install -e ../hbmep
+pip install "jax==0.4.30" "jaxlib==0.4.30" "numpyro==0.19.0" "numpy<2.0"
 ```
 
 ## Usage

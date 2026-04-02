@@ -26,18 +26,16 @@ else
 end
 
 p_hbmep_function = q(fullfile(getenv('D_MHBMEP_GIT'), '+sp', 'hbmep_caller.py'));
-p_hbmep_config = q(fullfile(getenv('D_MHBMEP_GIT'), 'auxf', 'internal', 'hbmep_config.toml'));
 d_output = q(strrep(p_csv, '.csv', sprintf('_hbmep%s', cfg_hbmep.es)));
 p_postproc = q(cfg_hbmep.p_postproc);
 p_csv = q(p_csv);
-d_output = q(d_output);
 response = char(response);
 units_intensity = char(cfg_hbmep.units_intensity);
 units_mepsize = char(cfg_hbmep.units_mepsize);
 
 % Build the system call
-command = sprintf('%s %s --p_hbmep_config %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s', ...
-    p_hbmep, p_hbmep_function, p_hbmep_config, p_csv, response, units_mepsize, units_intensity, d_output, p_postproc);
+command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s', ...
+    p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output, p_postproc);
 
 fprintf('Calling:\n')
 fprintf('%s\n\n', command);

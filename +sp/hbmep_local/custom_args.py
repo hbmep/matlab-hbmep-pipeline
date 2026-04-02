@@ -3,11 +3,12 @@ import importlib.util
 import importlib.metadata
 import os
 from types import SimpleNamespace
+from .model import Config
 ROOT = Path(__file__).resolve().parents[2]
 HOME = Path(os.path.expanduser("~"))
 
 args = SimpleNamespace(
-    p_hbmep_config=ROOT / "auxf" / "internal" / "hbmep_config.toml",
+    #p_hbmep_config=ROOT / "auxf" / "internal" / "hbmep_config.toml",
     p_csv=HOME / 'matlab-hbmep-pipeline/proc/SUBID_V1_IMM_data/SUBID_V1_IMM_data_mepsize.csv',
     response=['RAPB', 'RFDI'],
     d_output=HOME / 'matlab-hbmep-pipeline' / 'testing',
@@ -16,7 +17,7 @@ args = SimpleNamespace(
     units_intensity = 'A. U.',
 )
 
-p_hbmep_config = args.p_hbmep_config,
+#p_hbmep_config = args.p_hbmep_config,
 p_csv = args.p_csv,
 response = args.response,
 d_output = args.d_output

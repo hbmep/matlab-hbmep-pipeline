@@ -1,6 +1,18 @@
 import argparse
 import sys
 import io
+import os
+
+# JAX/NumPyro Windows x64 stability configuration
+os.environ["JAX_ENABLE_X64"] = "True"
+if os.name == 'nt':
+    # Force 1 device to avoid sharding bugs on Windows x64
+    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
+else:
+    import multiprocessing
+    cpu_count = multiprocessing.cpu_count()
+    os.environ.setdefault("XLA_FLAGS", f"--xla_force_host_platform_device_count={cpu_count}")
+
 import run_model
 from hbmep_local import custom_args
 
@@ -13,13 +25,15 @@ if __name__ == "__main__":
 
     else:
         parser = argparse.ArgumentParser(description="Run hbMEP recruitment curve model.")
-        parser.add_argument("--p_hbmep_config", required=True, help="Path to the hbMEP configuration file.")
+        # parser.add_argument("--p_hbmep_config", default=None, help="Path to the hbMEP configuration file (optional).")
         parser.add_argument("--p_csv", required=True, help="Path to the input CSV file.")
         parser.add_argument("--response", nargs="+", required=True, help="Response column(s) in the CSV.")
         parser.add_argument("--d_output", required=True, help="Output directory for model results.")
         parser.add_argument("--units_intensity", default="A. U.", help="Units of intensity.")
         parser.add_argument("--units_mepsize", default="A. U.", help="Units of MEP size.")
         parser.add_argument("--p_postproc", default="", help="Path to post-processing module.")
+        parser.add_argument("--model", default="rlTMSpkpkSmall", help="Model class to use.")
+        parser.add_argument("--use_mixture", action="store_true", help="Use mixture model for outliers.")
 
         args = parser.parse_args()
 
@@ -29,10 +43,12 @@ if __name__ == "__main__":
     postprocessing_helper['d_output'] = args.d_output
 
     run_model.main(
-        p_hbmep_config=args.p_hbmep_config,
         p_csv=args.p_csv,
         response=args.response,
         d_output=args.d_output,
         p_postproc=args.p_postproc,
         postprocessing_helper=postprocessing_helper,
+        model_name=args.model,
+        use_mixture=args.use_mixture,
+        #p_hbmep_config=args.p_hbmep_config,
     )

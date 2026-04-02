@@ -1,162 +1,183 @@
 import numpy as np
 import jax.numpy as jnp
-import numpyro
+import numpyro as pyro
 import numpyro.distributions as dist
-from hbmep.config import Config
-from hbmep_local import functional as functional, smooth_functional as smooth_functional
-from hbmep.model import GammaModel
-from hbmep.model.utils import Site as site
+from hbmep.model import BaseModel
+from hbmep.model.standard import EPS
+from hbmep import functional as F
+from hbmep.util import site as site
+import jax
 
 
-def get_name(self):
-    return (
-        f'{self.NAME}_'
-        f'{"_".join(self.response)}_'
-        f'{"_".join(self.features)}_'
-        f'{self.intensity}_'
-        f'mix{"T" if self.use_mixture else "F"}'
-        f'{"_smooth" if self.smooth else ""}'
-        f'_{self.size_type}'
-        f'{"_s50" if self.s50parameterization else ""}'
-    )
-
-
-def set_defaults(self):
-    return {
-        "use_mixture": True,
-        "smooth": False,
-        "size_type": 'auc',
-        "s50parameterization": False,
-        "run_kwargs": {
-            "max_tree_depth": (15, 15),
-            "target_accept_prob": 0.8,
-            "extra_fields": [
-                "potential_energy",
-                "num_steps",
-                "accept_prob",
-            ],
-        },
-        "mcmc_params": {
+class Config:
+    def __init__(self, toml_path=None):
+        self.toml_path = toml_path
+        self.INTENSITY = "TMSInt"
+        self.RESPONSE = []
+        self.FEATURES = ["participant", "condition"]
+        self.BUILD_DIR = "./"
+        self.MCMC_PARAMS = {
+            "num_chains": 4,
             "num_warmup": 1000,
             "num_samples": 1000,
             "thinning": 1,
-            "num_chains": 4,
-        },
-    }
+        }
+        self.MEP_DATA = {
+            "mep_matrix_path": "",
+            "mep_response": [],
+            "mep_window": [-0.25, 0.25],
+            "mep_size_window": [0.0065, 0.09],
+        }
 
 
-class RectifiedLogistic(GammaModel):
-    NAME = "RectifiedLogistic"
+class rlTMSpkpk(BaseModel):
+    """Rectified Logistic model implemented locally with hierarchical indexing fixes."""
+    def __init__(self, *args, **kw):
+        super(rlTMSpkpk, self).__init__(*args, **kw)
+        self.use_mixture = False
 
-    def __init__(self, config: Config):
-        super(RectifiedLogistic, self).__init__(config=config)
-        self.__dict__.update(set_defaults(self))
+    def load(self, df, **kwargs):
+        df, encoder = super().load(df, **kwargs)
+        self.encoder = encoder
+        return df, encoder
 
-    @property
-    def subname(self):
-        return get_name(self)
-
-    def _model(self, intensity, features, response_obs=None):
-        # Pick F based on whether we want smooth or not
-        F = smooth_functional if self.smooth else functional
-        # Decide which rectified logistic function to call
-        logistic_fn = F.rectified_logistic_s50 if self.s50parameterization else F.rectified_logistic
-
-        n_features = np.max(features, axis=0) + 1
-        feature0 = features[..., 0]
-        feature1 = features[..., 1]
-
-        if response_obs is None:
-            mask_obs = np.ones_like(response_obs, dtype=bool)
+    def rectified_logistic(self, intensity, features, response=None, **kw):
+        num_data = intensity.shape[0]
+        # Calculate concrete feature counts to avoid TracerBoolConversionError
+        if hasattr(self, 'encoder') and self.encoder is not None:
+            num_features = [np.int64(len(self.encoder[f].classes_)) for f in self.features]
         else:
-            mask_obs = np.invert(np.isnan(response_obs))
+            num_features = np.max(features, axis=0) + 1
 
-        # Hyper Priors
-        a_loc = numpyro.sample("a_loc", dist.TruncatedNormal(50., 100., low=0))
-        a_scale = numpyro.sample("a_scale", dist.HalfNormal(100.))
+        # Mask missing observations
+        mask_obs = True
+        if response is not None:
+            mask_obs = jnp.isfinite(response)
 
-        b_scale = numpyro.sample("b_scale", dist.HalfNormal(10.))
-        L_scale = numpyro.sample("L_scale", dist.HalfNormal(1.))
-        ell_scale = numpyro.sample("ell_scale", dist.HalfNormal(25.))
-        H_scale = numpyro.sample("H_scale", dist.HalfNormal(25.))
-        c_1_scale = numpyro.sample("c_1_scale", dist.HalfNormal(10.))
-        c_2_scale = numpyro.sample("c_2_scale", dist.HalfNormal(1.))
+        # Hyper-priors
+        a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(50., 50., low=0))
+        a_scale = pyro.sample(site.a.scale, dist.HalfNormal(50.))
+        b_scale = pyro.sample(site.b.scale, dist.HalfNormal(5.))
+        g_scale = pyro.sample(site.g.scale, dist.HalfNormal(.1))
+        h_scale = pyro.sample(site.h.scale, dist.HalfNormal(5.))
+        v_scale = pyro.sample(site.v.scale, dist.HalfNormal(5.))
+        c1_scale = pyro.sample(site.c1.scale, dist.HalfNormal(5.))
+        c2_scale = pyro.sample(site.c2.scale, dist.HalfNormal(.5))
+
+        # Advanced indexing: Reverse features to match plate_stack dimension order (..., F1, F0, R)
+        # plate_stack i=0 is dim -2 (F0), i=1 is dim -3 (F1)
+        idx = tuple(reversed(features.T)) + (slice(None),)
+
+        # Priors
+        with pyro.plate(site.num_response, self.num_response, dim=-1):
+            with pyro.plate_stack(site.num_features, num_features, rightmost_dim=-2):
+                a = pyro.sample(site.a, dist.TruncatedNormal(a_loc, a_scale, low=0))
+                b_raw = pyro.sample(site.b.raw, dist.HalfNormal(1))
+                b = pyro.deterministic(site.b, b_scale * b_raw)
+                g_raw = pyro.sample(site.g.raw, dist.HalfNormal(1))
+                g = pyro.deterministic(site.g, g_scale * g_raw)
+                h_raw = pyro.sample(site.h.raw, dist.HalfNormal(1))
+                h = pyro.deterministic(site.h, h_scale * h_raw)
+                v_raw = pyro.sample(site.v.raw, dist.HalfNormal(1))
+                v = pyro.deterministic(site.v, v_scale * v_raw)
+                c1_raw = pyro.sample(site.c1.raw, dist.HalfNormal(1))
+                c1 = pyro.deterministic(site.c1, c1_scale * c1_raw)
+                c2_raw = pyro.sample(site.c2.raw, dist.HalfNormal(1))
+                c2 = pyro.deterministic(site.c2, c2_scale * c2_raw)
 
         if self.use_mixture:
-            # Outlier distribution
-            q = numpyro.sample(site.outlier_prob, dist.Uniform(0., 0.025))
+            q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
 
-        with numpyro.plate(site.n_response, self.n_response):
-            with numpyro.plate(site.n_features[1], n_features[1]):
-                with numpyro.plate(site.n_features[0], n_features[0]):
-                    # Priors
-                    a = numpyro.sample(
-                        site.a, dist.TruncatedNormal(a_loc, a_scale, low=0)
+        # Observation model
+        with pyro.handlers.mask(mask=mask_obs):
+            mu = pyro.deterministic(
+                site.mu,
+                F.rectified_logistic(
+                    intensity.reshape(-1, 1),
+                    a[idx], b[idx], g[idx], h[idx], v[idx], EPS
+                )
+            )
+            alpha, beta = self.gamma_likelihood(mu, c1[idx], c2[idx])
+
+            if self.use_mixture:
+                mixing_distribution = dist.Categorical(probs=jnp.stack([1 - q, q], axis=-1))
+                component_distributions = [
+                    dist.Gamma(concentration=alpha, rate=beta),
+                    dist.HalfNormal(scale=(g[idx] + h[idx]))
+                ]
+                Mixture = dist.MixtureGeneral(mixing_distribution, component_distributions)
+
+            with pyro.plate(site.num_response, self.num_response, dim=-1):
+                with pyro.plate(site.num_data, num_data, dim=-2):
+                    y_ = pyro.sample(
+                        site.obs,
+                        Mixture if self.use_mixture else dist.Gamma(alpha, beta),
+                        obs=response
                     )
+                    if self.use_mixture:
+                        log_probs = Mixture.component_log_probs(y_)
+                        pyro.deterministic("p", log_probs - jax.nn.logsumexp(log_probs, axis=-1, keepdims=True))
 
-                    b_raw = numpyro.sample("b_raw", dist.HalfNormal(scale=1))
-                    b = numpyro.deterministic(site.b, jnp.multiply(b_scale, b_raw))
 
-                    L_raw = numpyro.sample("L_raw", dist.HalfNormal(scale=1))
-                    L = numpyro.deterministic(site.L, jnp.multiply(L_scale, L_raw))
+class rlTMSpkpkSmall(BaseModel):
+    """Based on rl in base_agent.py (non-hierarchical priors)"""
+    def __init__(self, *args, **kw):
+        super(rlTMSpkpkSmall, self).__init__(*args, **kw)
+        self.use_mixture = False
 
-                    ell_raw = numpyro.sample("ell_raw", dist.HalfNormal(scale=1))
-                    ell = numpyro.deterministic(site.ell, jnp.multiply(ell_scale, ell_raw))
+    def load(self, df, **kwargs):
+        df, encoder = super().load(df, **kwargs)
+        self.encoder = encoder
+        return df, encoder
 
-                    H_raw = numpyro.sample("H_raw", dist.HalfNormal(scale=1))
-                    H = numpyro.deterministic(site.H, jnp.multiply(H_scale, H_raw))
+    def rectified_logistic(self, intensity, features, response=None, **kw):
+        num_data = intensity.shape[0]
+        if hasattr(self, 'encoder') and self.encoder is not None:
+            num_features = [np.int64(len(self.encoder[f].classes_)) for f in self.features]
+        else:
+            num_features = np.max(features, axis=0) + 1
 
-                    c_1_raw = numpyro.sample("c_1_raw", dist.HalfNormal(scale=1))
-                    c_1 = numpyro.deterministic(site.c_1, jnp.multiply(c_1_scale, c_1_raw))
+        mask_obs = True
+        if response is not None:
+            mask_obs = jnp.isfinite(response)
 
-                    c_2_raw = numpyro.sample("c_2_raw", dist.HalfNormal(scale=1))
-                    c_2 = numpyro.deterministic(site.c_2, jnp.multiply(c_2_scale, c_2_raw))
+        idx = tuple(reversed(features.T)) + (slice(None),)
 
-        mu = numpyro.deterministic(
-            site.mu,
-            logistic_fn(
-                x=intensity,
-                a=a[feature0, feature1],
-                b=b[feature0, feature1],
-                L=L[feature0, feature1],
-                ell=ell[feature0, feature1],
-                H=H[feature0, feature1]
-            )
-        )
-        beta = numpyro.deterministic(
-            site.beta,
-            self.rate(
-                mu,
-                c_1[feature0, feature1],
-                c_2[feature0, feature1]
-            )
-        )
-        alpha = numpyro.deterministic(
-            site.alpha,
-            self.concentration(mu, beta)
-        )
+        with pyro.plate(site.num_response, self.num_response, dim=-1):
+            with pyro.plate_stack(site.num_features, num_features, rightmost_dim=-2):
+                a = pyro.sample(site.a, dist.TruncatedNormal(50., 50., low=0.))
+                b = pyro.sample(site.b, dist.HalfNormal(1.))
+                g = pyro.sample(site.g, dist.HalfNormal(.1))
+                h = pyro.sample(site.h, dist.HalfNormal(5.))
+                v = pyro.sample(site.v, dist.HalfNormal(5.))
+                c1 = pyro.sample(site.c1, dist.HalfNormal(5.))
+                c2 = pyro.sample(site.c2, dist.HalfNormal(.5))
 
         if self.use_mixture:
-            # Mixture
-            mixing_distribution = dist.Categorical(
-                probs=jnp.stack([1 - q, q], axis=-1)
-            )
-            component_distributions = [
-                dist.Gamma(concentration=alpha, rate=beta),
-                dist.HalfNormal(scale=25.0)
-            ]
-            Mixture = dist.MixtureGeneral(
-                mixing_distribution=mixing_distribution,
-                component_distributions=component_distributions
-            )
+            q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
 
-        with numpyro.handlers.mask(mask=mask_obs):
-            numpyro.sample(
-                site.obs,
-                (
-                    Mixture if self.use_mixture
-                    else dist.Gamma(concentration=alpha, rate=beta)
-                ),
-                obs=response_obs
+        with pyro.handlers.mask(mask=mask_obs):
+            mu = pyro.deterministic(
+                site.mu,
+                F.rectified_logistic(
+                    intensity.reshape(-1, 1),
+                    a[idx], b[idx], g[idx], h[idx], v[idx], EPS
+                )
             )
+            alpha, beta = self.gamma_likelihood(mu, c1[idx], c2[idx])
 
+            if self.use_mixture:
+                mixing_distribution = dist.Categorical(probs=jnp.stack([1 - q, q], axis=-1))
+                component_distributions = [
+                    dist.Gamma(concentration=alpha, rate=beta),
+                    dist.HalfNormal(scale=(g[idx] + h[idx]))
+                ]
+                Mixture = dist.MixtureGeneral(mixing_distribution, component_distributions)
+
+            with pyro.plate(site.num_response, self.num_response, dim=-1):
+                with pyro.plate(site.num_data, num_data, dim=-2):
+                    pyro.sample(
+                        site.obs,
+                        Mixture if self.use_mixture else dist.Gamma(alpha, beta),
+                        obs=response
+                    )
