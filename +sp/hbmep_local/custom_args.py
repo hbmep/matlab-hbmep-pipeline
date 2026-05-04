@@ -15,6 +15,8 @@ args = SimpleNamespace(
     p_postproc = '',
     units_mepsize = 'A. U.',
     units_intensity = 'A. U.',
+    model = 'rlTMSpkpkSmall',
+    use_mixture = False,
 )
 
 #p_hbmep_config = args.p_hbmep_config,
