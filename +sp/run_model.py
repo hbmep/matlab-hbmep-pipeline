@@ -1,6 +1,9 @@
-import hbmep
+import os
+
 import numpyro
-numpyro.set_host_device_count(4)
+numpyro.set_host_device_count(1 if os.name == "nt" else 4)
+
+import hbmep
 from hbmep.util import site as site
 import hbmep_local.model as local_models
 import pickle
@@ -113,12 +116,13 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
         prediction_prob=0.95
     )
 
-    model.plot_predictive(
-        df=df,
-        encoder_dict=encoder_dict,
-        prediction_df=prediction_df,
-        predictive=posterior_predictive
-    )
+    if hasattr(model, "plot_predictive"):
+        model.plot_predictive(
+            df=df,
+            encoder_dict=encoder_dict,
+            prediction_df=prediction_df,
+            predictive=posterior_predictive
+        )
 
     print('Generating and saving HDI summary...')
     summary = az.summary(posterior_samples_chained, hdi_prob=0.95)
