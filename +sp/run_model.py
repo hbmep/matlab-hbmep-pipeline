@@ -10,6 +10,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import importlib.util
+import inspect
 from pathlib import Path
 import arviz as az
 
@@ -107,14 +108,20 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
     )
 
     print(f'Rendering to: {model.build_dir}')
-    model.plot_curves(
-        df=df,
-        encoder_dict=encoder_dict,
-        posterior=posterior_samples,
-        prediction_df=prediction_df,
-        predictive=posterior_predictive,
-        prediction_prob=0.95
-    )
+    plot_curves_kwargs = {
+        "df": df,
+        "encoder_dict": encoder_dict,
+        "posterior": posterior_samples,
+        "prediction_df": prediction_df,
+        "predictive": posterior_predictive,
+    }
+    plot_curves_params = inspect.signature(model.plot_curves).parameters
+    if "predictive_hdi_prob" in plot_curves_params:
+        plot_curves_kwargs["predictive_hdi_prob"] = 0.95
+    else:
+        plot_curves_kwargs["prediction_prob"] = 0.95
+
+    model.plot_curves(**plot_curves_kwargs)
 
     if hasattr(model, "plot_predictive"):
         model.plot_predictive(
