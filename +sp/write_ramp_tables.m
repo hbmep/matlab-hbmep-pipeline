@@ -116,7 +116,11 @@ print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
 cfg_loaded.ramp.analysis = cfg_a;
 
 %%
+try
 toml.write(p_toml_out, cfg_loaded);
+catch
+    fprintf('Failed to write toml: %s\n', p_toml_out);
+end
 writetable(mepsize_table, p_csv_out);
 save(p_mat_out, 'ep_sliced', 't_sliced')
 fprintf('Recruitment table written to:\n%s\n', p_csv_out);
