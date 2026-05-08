@@ -11,6 +11,10 @@ end
 if not(isfield(cfg_hbmep, 'p_postproc'))
     cfg_hbmep.p_postproc = '';
 end
+if not(isfield(cfg_hbmep, 'use_mixture'))
+    cfg_hbmep.use_mixture = '';
+end
+
 %%
 response = response.join(' ');
 
@@ -33,13 +37,23 @@ response = char(response);
 units_intensity = char(cfg_hbmep.units_intensity);
 units_mepsize = char(cfg_hbmep.units_mepsize);
 
-% Build the system call
-command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s', ...
-    p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output, p_postproc);
-
-fprintf('Calling:\n')
-fprintf('%s\n\n', command);
-status = system(command);
+for use_mixture = [false, true]
+    cfg_hbmep.use_mixture = use_mixture;
+    if cfg_hbmep.use_mixture
+        d_output_local = sprintf('%s_with_mixture', d_output);
+        str_mixture = '--use_mixture';
+    else
+        d_output_local = d_output;
+        str_mixture = '';
+    end
+    
+    % Build the system call
+    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s %s', ...
+        p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, str_mixture);
+    
+    fprintf('Calling:\n')
+    fprintf('%s\n\n', command);
+    status = system(command);
 
 % Check execution status
 if status ~= 0

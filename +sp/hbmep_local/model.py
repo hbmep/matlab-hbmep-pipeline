@@ -18,9 +18,13 @@ class Config:
         self.BUILD_DIR = "./"
         self.MCMC_PARAMS = {
             "num_chains": 4,
-            "num_warmup": 1000,
-            "num_samples": 1000,
-            "thinning": 1,
+            "num_warmup": 4000,
+            "num_samples": 4000,
+            "thinning": 4,
+        }
+        self.NUTS = {
+            "max_tree_depth": (15, 15),
+            "target_accept_prob": 0.95,
         }
         self.MEP_DATA = {
             "mep_matrix_path": "",
@@ -170,7 +174,7 @@ class rlTMSpkpkSmall(BaseModel):
                 mixing_distribution = dist.Categorical(probs=jnp.stack([1 - q, q], axis=-1))
                 component_distributions = [
                     dist.Gamma(concentration=alpha, rate=beta),
-                    dist.HalfNormal(scale=(g[idx] + h[idx]))
+                    dist.HalfNormal(scale=10.0)
                 ]
                 Mixture = dist.MixtureGeneral(mixing_distribution, component_distributions)
 

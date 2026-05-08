@@ -1,3 +1,0 @@
-[submodule "auxf/external/matlab-toml"]
-	path = auxf/external/matlab-toml
-	url = https://github.com/jrmxn/matlab-toml
