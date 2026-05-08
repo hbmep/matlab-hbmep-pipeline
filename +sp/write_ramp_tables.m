@@ -117,7 +117,7 @@ cfg_loaded.ramp.analysis = cfg_a;
 
 %%
 try
-toml.write(p_toml_out, cfg_loaded);
+    toml.write(p_toml_out, toml.struct_to_map(cfg_loaded));
 catch
     fprintf('Failed to write toml: %s\n', p_toml_out);
 end
