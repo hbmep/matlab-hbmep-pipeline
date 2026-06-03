@@ -42,6 +42,40 @@ cfg_a = cfg_table.slice;
 ix_stim = find(raw_table.(cfg_loaded.ramp.trigger));
 vec_channel_name = string(raw_table.Properties.VariableNames);
 
+%%
+if isfield(cfg_table, 'time_zero_augment')
+    time_zero_augment = cfg_table.time_zero_augment;
+else
+    time_zero_augment = [];
+end
+if not(isempty(time_zero_augment))
+    assert(all(isfinite(time_zero_augment)), "?");
+    mepsize_table.augmented(:) = false;
+    
+    case_augment = mepsize_table.cx_amplitude > 0 | mepsize_table.es_amplitude > 0;
+    mepsize_table_augment_base = mepsize_table(case_augment, :);
+    
+    mepsize_table_augment_base.augmented(:) = true;
+    ix_stim_augment_base = ix_stim(case_augment);
+    mepsize_table_augment_base.cx_amplitude(:) = 0;
+    mepsize_table_augment_base.es_amplitude(:) = 0;
+    mepsize_table_augment_base.intensity(:) = 0;
+    
+    for ix_augment = 1:length(time_zero_augment)
+        t_zero = time_zero_augment(ix_augment);
+        mepsize_table_augment = mepsize_table_augment_base;
+        mepsize_table_augment.datetime = mepsize_table_augment_base.datetime - t_zero*seconds;
+        ix_stim_augment = ix_stim_augment_base - t_zero * fs;
+        
+        mepsize_table = [mepsize_table; mepsize_table_augment];
+        ix_stim = [ix_stim; ix_stim_augment];
+    end
+    [~, vec_sort] = sort(mepsize_table.datetime);
+    mepsize_table = mepsize_table(vec_sort, :);
+    ix_stim = ix_stim(vec_sort);
+end
+
+
 %% Slice MEPs for visualisation
 ix_slice = floor(fs * cfg_table.slice.t_min): ceil(cfg_table.slice.t_max *fs);
 [ep_sliced, t_sliced] = slice_mat(raw_table, ix_stim, ix_slice, fs, vec_channel_name);
@@ -111,6 +145,26 @@ for ix_response = 1:length(vec_channel_name)
 end
 
 print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
+
+%% for debugging zero additions
+% X = ep_sliced(:, :, vec_channel_name == "cAPB").';
+% for ix = 1:height(mepsize_table)
+%     subplot(1, 2, 1);cla;
+%     plot(t_sliced, X(:, ix));
+% 
+%     s1 = mepsize_table.intensity(1:ix);
+%     t = mepsize_table.ix_trial(1:ix);
+%     v = mepsize_table.('cAPB')(1:ix);
+%     title(sprintf('%d: %0.1f %% , AUC: %0.4f', t(end), s1(end), v(end)));
+%     ylim([-1, 1]);
+% 
+%     subplot(1, 2, 2);cla;
+%     plot(s1, v, 'o');hold on;
+%     plot(s1(mepsize_table.augmented(1:ix)), v(mepsize_table.augmented(1:ix)), 'ro');
+% 
+%     drawnow;
+%     pause;
+% end
 
 %%
 cfg_loaded.ramp.analysis = cfg_a;
