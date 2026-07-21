@@ -12,7 +12,7 @@ t_ex_stim_start = -0.001;
 t_ex_stim_stop  = 0.015;
 t_ex_mep_stop   = 0.075;
 harmonics       = [60, 120];
-q_cov           = 1e-5; % Process noise (tracking speed)
+q_cov           = 5e-7; % Process noise (could try 1e-7 if filtering is too broad)
 r_cov           = 1;    % Measurement noise 
 
 if isfield(cfg, 'line_suppression')
