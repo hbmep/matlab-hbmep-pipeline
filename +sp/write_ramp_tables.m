@@ -10,6 +10,9 @@ end
 if not(isfield(cfg_table, 'units_mepsize'))
     cfg_table.units_mepsize = 'µVs';
 end
+if not(isfield(cfg_table, 'throw_slicing_error'))
+    cfg_table.throw_slicing_error = true;
+end
 
 %%
 d_proc = fullfile(getenv('D_PROC'));
@@ -40,6 +43,16 @@ cfg_a = cfg_table.slice;
 
 %%
 ix_stim = find(raw_table.(cfg_loaded.ramp.trigger));
+
+if size(mepsize_table, 1) == length(ix_stim)
+    % ok
+else
+    ix_stim = ix_stim(1:height(mepsize_table));
+    if cfg_table.throw_slicing_error
+        error('Number of intensities and triggers are different!');
+    end
+end
+
 vec_channel_name = string(raw_table.Properties.VariableNames);
 
 %%
@@ -51,22 +64,22 @@ end
 if not(isempty(time_zero_augment))
     assert(all(isfinite(time_zero_augment)), "?");
     mepsize_table.augmented(:) = false;
-    
+
     case_augment = mepsize_table.cx_amplitude > 0 | mepsize_table.es_amplitude > 0;
     mepsize_table_augment_base = mepsize_table(case_augment, :);
-    
+
     mepsize_table_augment_base.augmented(:) = true;
     ix_stim_augment_base = ix_stim(case_augment);
     mepsize_table_augment_base.cx_amplitude(:) = 0;
     mepsize_table_augment_base.es_amplitude(:) = 0;
     mepsize_table_augment_base.intensity(:) = 0;
-    
+
     for ix_augment = 1:length(time_zero_augment)
         t_zero = time_zero_augment(ix_augment);
         mepsize_table_augment = mepsize_table_augment_base;
         mepsize_table_augment.datetime = mepsize_table_augment_base.datetime - t_zero*seconds;
         ix_stim_augment = ix_stim_augment_base - t_zero * fs;
-        
+
         mepsize_table = [mepsize_table; mepsize_table_augment];
         ix_stim = [ix_stim; ix_stim_augment];
     end
@@ -104,9 +117,9 @@ for ix_response = 1:length(vec_channel_name)
 
     h_f = figure('Name', sprintf('mep_%s_%s', cfg_loaded.filename, str_channel_plot));
 
-    width = 15; % Width in cm
-    height = 25; % Height in cm
-    set(h_f, 'Units', 'centimeters', 'Position', [5, 5, width, height]);
+    width_ = 15; % Width in cm
+    height_ = 25; % Height in cm
+    set(h_f, 'Units', 'centimeters', 'Position', [5, 5, width_, height_]);
 
     case_channel = vec_channel_name == str_channel_plot;
 
@@ -129,9 +142,9 @@ end
 %%
 clf;
 h_f = figure('Name', sprintf('mep_%s_size', cfg_loaded.filename));
-width = 20; % Width in cm
-height = 20; % Height in cm
-set(h_f, 'Units', 'centimeters', 'Position', [5, 5, width, height]);
+width_ = 20; % Width in cm
+height_ = 20; % Height in cm
+set(h_f, 'Units', 'centimeters', 'Position', [5, 5, width_, height_]);
 
 for ix_response = 1:length(vec_channel_name)
     str_channel_plot = vec_channel_name(ix_response);
@@ -151,17 +164,17 @@ print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
 % for ix = 1:height(mepsize_table)
 %     subplot(1, 2, 1);cla;
 %     plot(t_sliced, X(:, ix));
-% 
+%
 %     s1 = mepsize_table.intensity(1:ix);
 %     t = mepsize_table.ix_trial(1:ix);
 %     v = mepsize_table.('cAPB')(1:ix);
 %     title(sprintf('%d: %0.1f %% , AUC: %0.4f', t(end), s1(end), v(end)));
 %     ylim([-1, 1]);
-% 
+%
 %     subplot(1, 2, 2);cla;
 %     plot(s1, v, 'o');hold on;
 %     plot(s1(mepsize_table.augmented(1:ix)), v(mepsize_table.augmented(1:ix)), 'ro');
-% 
+%
 %     drawnow;
 %     pause;
 % end
