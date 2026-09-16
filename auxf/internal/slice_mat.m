@@ -1,6 +1,6 @@
 function [y_mep, t_slice] = slice_mat(X, ix_stim, ix_slice, fs, vec_channel_name)
 mat_slice = ix_stim + ix_slice;
-case_rm = (mat_slice<1) | mat_slice>size(X, 1);
+case_rm = (mat_slice<1) | (mat_slice>size(X, 1)) | isnan(mat_slice);
 mat_slice(case_rm) = 1;
 y_mep = nan([size(mat_slice), length(vec_channel_name)]);
 for ix = 1:length(vec_channel_name)
