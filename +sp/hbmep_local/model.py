@@ -18,9 +18,9 @@ class Config:
         self.BUILD_DIR = "./"
         self.MCMC_PARAMS = {
             "num_chains": 4,
-            "num_warmup": 4000,
-            "num_samples": 4000,
-            "thinning": 4,
+            "num_warmup": 400,
+            "num_samples": 400,
+            "thinning": 1,
         }
         self.NUTS = {
             "max_tree_depth": (15, 15),

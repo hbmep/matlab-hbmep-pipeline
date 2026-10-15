@@ -15,9 +15,13 @@ from pathlib import Path
 import arviz as az
 
 
-def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name="rlTMSpkpkSmall", use_mixture=False):
+def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name="rlTMSpkpkSmall", use_mixture=False, mcmc_params=None):
     # Load hbMEP configuration
     cfg_hbmep = local_models.Config(toml_path=p_hbmep_config)
+    if mcmc_params:
+        for k, v in mcmc_params.items():
+            if v is not None:
+                cfg_hbmep.MCMC_PARAMS[k] = v
     dfo = pd.read_csv(str(p_csv))
 
     # Clean and preprocess data

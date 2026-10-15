@@ -11,8 +11,29 @@ end
 if not(isfield(cfg_hbmep, 'p_postproc'))
     cfg_hbmep.p_postproc = '';
 end
-if not(isfield(cfg_hbmep, 'use_mixture'))
-    cfg_hbmep.use_mixture = '';
+if not(isfield(cfg_hbmep, 'use_mixture')) || isempty(cfg_hbmep.use_mixture) || (ischar(cfg_hbmep.use_mixture) && isempty(cfg_hbmep.use_mixture))
+    vec_mixture = false;
+elseif islogical(cfg_hbmep.use_mixture)
+    vec_mixture = cfg_hbmep.use_mixture;
+elseif strcmpi(string(cfg_hbmep.use_mixture), "both")
+    vec_mixture = [false, true];
+elseif strcmpi(string(cfg_hbmep.use_mixture), "true")
+    vec_mixture = true;
+else
+    vec_mixture = false;
+end
+
+if not(isfield(cfg_hbmep, 'num_warmup')) || isempty(cfg_hbmep.num_warmup)
+    cfg_hbmep.num_warmup = 400;
+end
+if not(isfield(cfg_hbmep, 'num_samples')) || isempty(cfg_hbmep.num_samples)
+    cfg_hbmep.num_samples = 400;
+end
+if not(isfield(cfg_hbmep, 'num_chains')) || isempty(cfg_hbmep.num_chains)
+    cfg_hbmep.num_chains = 4;
+end
+if not(isfield(cfg_hbmep, 'thinning')) || isempty(cfg_hbmep.thinning)
+    cfg_hbmep.thinning = 1;
 end
 
 %%
@@ -37,9 +58,8 @@ response = char(response);
 units_intensity = char(cfg_hbmep.units_intensity);
 units_mepsize = char(cfg_hbmep.units_mepsize);
 
-for use_mixture = [false, true]
-    cfg_hbmep.use_mixture = use_mixture;
-    if cfg_hbmep.use_mixture
+for use_mixture = vec_mixture
+    if use_mixture
         d_output_local = sprintf('%s_with_mixture', d_output);
         str_mixture = '--use_mixture';
     else
@@ -48,8 +68,9 @@ for use_mixture = [false, true]
     end
     
     % Build the system call
-    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s %s', ...
-        p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, str_mixture);
+    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d %s', ...
+        p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, ...
+        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, str_mixture);
     
     fprintf('Calling:\n')
     fprintf('%s\n\n', command);
@@ -60,6 +81,6 @@ if status ~= 0
     error('System call failed. Check the inputs.');
 end
 fprintf('Results written to:\n')
-fprintf('%s', d_output);
+fprintf('%s', d_output_local);
 fprintf('\n---\n');
 end

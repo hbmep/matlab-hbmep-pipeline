@@ -112,10 +112,20 @@ for ix = 1:length(vec_channel_name)
 end
 
 %%
+show_figures = false;
+if isfield(cfg_table, 'show_figures')
+    show_figures = cfg_table.show_figures;
+end
+
+fig_vis = 'off';
+if (islogical(show_figures) && show_figures) || strcmpi(string(show_figures), 'on')
+    fig_vis = 'on';
+end
+
 for ix_response = 1:length(vec_channel_name)
     str_channel_plot = vec_channel_name(ix_response);
 
-    h_f = figure('Name', sprintf('mep_%s_%s', cfg_loaded.filename, str_channel_plot));
+    h_f = figure('Name', sprintf('mep_%s_%s', cfg_loaded.filename, str_channel_plot), 'Visible', fig_vis);
 
     width_ = 15; % Width in cm
     height_ = 25; % Height in cm
@@ -136,12 +146,14 @@ for ix_response = 1:length(vec_channel_name)
 
     saveas(h_f, fullfile(d_out, [h_f.Name, '.fig']));
     print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
+    if ~strcmp(fig_vis, 'on')
+        close(h_f);
+    end
 
 end
 
 %%
-clf;
-h_f = figure('Name', sprintf('mep_%s_size', cfg_loaded.filename));
+h_f = figure('Name', sprintf('mep_%s_size', cfg_loaded.filename), 'Visible', fig_vis);
 width_ = 20; % Width in cm
 height_ = 20; % Height in cm
 set(h_f, 'Units', 'centimeters', 'Position', [5, 5, width_, height_]);
@@ -158,6 +170,12 @@ for ix_response = 1:length(vec_channel_name)
 end
 
 print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
+saveas(h_f, fullfile(d_out, [h_f.Name, '.fig']));
+if ~strcmp(fig_vis, 'on')
+    close(h_f);
+end
+
+fprintf('MEP figures (.fig and .pdf) saved to:\n  %s\n', d_out);
 
 %% for debugging zero additions
 % X = ep_sliced(:, :, vec_channel_name == "cAPB").';
