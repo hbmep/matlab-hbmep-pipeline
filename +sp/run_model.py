@@ -153,6 +153,16 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
     if p_postproc:
         p_postproc = Path(p_postproc)
         if not p_postproc.is_file():
+            d_git = os.environ.get('D_GIT')
+            if d_git and (Path(d_git) / p_postproc).is_file():
+                p_postproc = Path(d_git) / p_postproc
+            else:
+                repo_root = Path(__file__).resolve().parents[3]
+                if (repo_root / p_postproc).is_file():
+                    p_postproc = repo_root / p_postproc
+                elif (repo_root.parent / p_postproc).is_file():
+                    p_postproc = repo_root.parent / p_postproc
+        if not p_postproc.is_file():
             raise FileNotFoundError(f"Post-processing script not found: {p_postproc}")
         # load the module from an arbitrary file path
         spec = importlib.util.spec_from_file_location("postproc_module", str(p_postproc))

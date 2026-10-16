@@ -17,7 +17,7 @@ if not(isfield(cfg_proc, 'hbmep'))
 end
 
 %%
-if contains(p_data, 'example')
+if (ischar(p_data) || (isstring(p_data) && isscalar(p_data))) && contains(p_data, 'example')
     p_data = fullfile(getenv('D_MHBMEP_GIT'), 'auxf', p_data, 'SUBID_V1_IMM_data.csv');  % reduce this and make it not dnc_
 end
 

@@ -44,6 +44,10 @@ cfg_a = cfg_table.slice;
 %%
 ix_stim = find(raw_table.(cfg_loaded.ramp.trigger));
 
+if isempty(ix_stim) || height(mepsize_table) == 0
+    error('Cannot write ramp tables: No stimulation triggers or trials found in the dataset.');
+end
+
 if size(mepsize_table, 1) == length(ix_stim)
     % ok
 else
@@ -135,14 +139,16 @@ for ix_response = 1:length(vec_channel_name)
 
     hold on;
     o = mepsize_table.intensity;
-    plot(t_sliced, o + ep_sliced(:, :, case_channel));
-    plot(ones(1, 2) * cfg_table.slice.t_min_size, get(gca, 'ylim'), 'r');
-    plot(ones(1, 2) * cfg_table.slice.t_max_size, get(gca, 'ylim'), 'r');
-    xlim([cfg_table.slice.t_min, cfg_table.slice.t_max]);
-    grid on;
-    xlabel('Time (s)');
-    ylabel(sprintf('Intensity (%s) | MEP (mV)', cfg_loaded.ramp.units));
-    title(str_channel_plot);
+    if ~isempty(o) && ~isempty(ep_sliced) && size(ep_sliced, 1) > 0
+        plot(t_sliced, o + ep_sliced(:, :, case_channel));
+        plot(ones(1, 2) * cfg_table.slice.t_min_size, get(gca, 'ylim'), 'r');
+        plot(ones(1, 2) * cfg_table.slice.t_max_size, get(gca, 'ylim'), 'r');
+        xlim([cfg_table.slice.t_min, cfg_table.slice.t_max]);
+        grid on;
+        xlabel('Time (s)');
+        ylabel(sprintf('Intensity (%s) | MEP (mV)', cfg_loaded.ramp.units));
+        title(str_channel_plot);
+    end
 
     saveas(h_f, fullfile(d_out, [h_f.Name, '.fig']));
     print(h_f, fullfile(d_out, [h_f.Name, '.pdf']), '-dpdf', '-bestfit');
