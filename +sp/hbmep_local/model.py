@@ -68,9 +68,8 @@ class rlTMSpkpk(BaseModel):
         c1_scale = pyro.sample(site.c1.scale, dist.HalfNormal(5.))
         c2_scale = pyro.sample(site.c2.scale, dist.HalfNormal(.5))
 
-        # Advanced indexing: Reverse features to match plate_stack dimension order (..., F1, F0, R)
-        # plate_stack i=0 is dim -2 (F0), i=1 is dim -3 (F1)
-        idx = tuple(reversed(features.T)) + (slice(None),)
+        # Plate stack dimension order matches features columns: (F0, F1, ..., R)
+        idx = tuple(features.T) + (slice(None),)
 
         # Priors
         with pyro.plate(site.num_response, self.num_response, dim=-1):
@@ -145,7 +144,7 @@ class rlTMSpkpkSmall(BaseModel):
         if response is not None:
             mask_obs = jnp.isfinite(response)
 
-        idx = tuple(reversed(features.T)) + (slice(None),)
+        idx = tuple(features.T) + (slice(None),)
 
         with pyro.plate(site.num_response, self.num_response, dim=-1):
             with pyro.plate_stack(site.num_features, num_features, rightmost_dim=-2):
