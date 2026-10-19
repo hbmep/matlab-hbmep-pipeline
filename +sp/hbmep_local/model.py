@@ -84,7 +84,7 @@ class rlpkpk(BaseModel):
 
         b_scale = pyro.sample(site.b.scale, dist.HalfNormal(5.))
         g_scale = pyro.sample(site.g.scale, dist.HalfNormal(.1))
-        h_scale = pyro.sample(site.h.scale, dist.HalfNormal(5.))
+        h_scale = pyro.sample(site.h.scale, dist.HalfNormal(10.))  # changed this from 5.0 (potentially to accomodate SCS MEP sizes)
         v_scale = pyro.sample(site.v.scale, dist.HalfNormal(5.))
         c1_scale = pyro.sample(site.c1.scale, dist.HalfNormal(5.))
         c2_scale = pyro.sample(site.c2.scale, dist.HalfNormal(.5))
@@ -196,7 +196,7 @@ class rlpkpkSmall(BaseModel):
                 a = pyro.sample(site.a, dist.TruncatedNormal(a_loc, a_scale, low=0.))
                 b = pyro.sample(site.b, dist.HalfNormal(1.))
                 g = pyro.sample(site.g, dist.HalfNormal(.1))
-                h = pyro.sample(site.h, dist.HalfNormal(5.))
+                h = pyro.sample(site.h, dist.HalfNormal(10.))  # changed this from 5.0 (potentially to accomodate SCS MEP sizes)
                 v = pyro.sample(site.v, dist.HalfNormal(5.))
                 c1 = pyro.sample(site.c1, dist.HalfNormal(5.))
                 c2 = pyro.sample(site.c2, dist.HalfNormal(.5))
