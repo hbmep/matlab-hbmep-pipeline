@@ -34,15 +34,30 @@ class Config:
         }
 
 
-class rlTMSpkpk(BaseModel):
-    """Rectified Logistic model implemented locally with hierarchical indexing fixes."""
-    def __init__(self, *args, **kw):
-        super(rlTMSpkpk, self).__init__(*args, **kw)
+class rlpkpk(BaseModel):
+    """Rectified Logistic model implemented locally with hierarchical indexing fixes.
+    Supports both TMS and SCS stimulation types."""
+    def __init__(self, *args, is_scs=False, stim_type=None, **kw):
+        super(rlpkpk, self).__init__(*args, **kw)
         self.use_mixture = False
+        config = kw.get('config', {})
+        if stim_type is not None:
+            self.is_scs = (stim_type.lower() == 'scs')
+        elif 'stim_type' in config:
+            self.is_scs = (config['stim_type'].lower() == 'scs')
+        else:
+            self.is_scs = is_scs
 
     def load(self, df, **kwargs):
         df, encoder = super().load(df, **kwargs)
         self.encoder = encoder
+        if not getattr(self, 'is_scs', False):
+            if hasattr(self, 'features') and self.features:
+                last_feat = self.features[-1]
+                if last_feat in encoder:
+                    classes = encoder[last_feat].classes_
+                    if any(c.startswith('sc') for c in classes):
+                        self.is_scs = True
         return df, encoder
 
     def rectified_logistic(self, intensity, features, response=None, **kw):
@@ -58,9 +73,15 @@ class rlTMSpkpk(BaseModel):
         if response is not None:
             mask_obs = jnp.isfinite(response)
 
-        # Hyper-priors
-        a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(50., 50., low=0))
-        a_scale = pyro.sample(site.a.scale, dist.HalfNormal(50.))
+        # Hyper-priors (differentiated for SCS vs TMS)
+        is_scs = getattr(self, 'is_scs', False)
+        if is_scs:
+            a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(5., 10., low=0))
+            a_scale = pyro.sample(site.a.scale, dist.HalfNormal(10.))
+        else:
+            a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(50., 50., low=0))
+            a_scale = pyro.sample(site.a.scale, dist.HalfNormal(50.))
+
         b_scale = pyro.sample(site.b.scale, dist.HalfNormal(5.))
         g_scale = pyro.sample(site.g.scale, dist.HalfNormal(.1))
         h_scale = pyro.sample(site.h.scale, dist.HalfNormal(5.))
@@ -122,15 +143,30 @@ class rlTMSpkpk(BaseModel):
                         pyro.deterministic("p", log_probs - jax.nn.logsumexp(log_probs, axis=-1, keepdims=True))
 
 
-class rlTMSpkpkSmall(BaseModel):
-    """Based on rl in base_agent.py (non-hierarchical priors)"""
-    def __init__(self, *args, **kw):
-        super(rlTMSpkpkSmall, self).__init__(*args, **kw)
+class rlpkpkSmall(BaseModel):
+    """Based on rl in base_agent.py (non-hierarchical priors).
+    Supports both TMS and SCS stimulation types."""
+    def __init__(self, *args, is_scs=False, stim_type=None, **kw):
+        super(rlpkpkSmall, self).__init__(*args, **kw)
         self.use_mixture = False
+        config = kw.get('config', {})
+        if stim_type is not None:
+            self.is_scs = (stim_type.lower() == 'scs')
+        elif 'stim_type' in config:
+            self.is_scs = (config['stim_type'].lower() == 'scs')
+        else:
+            self.is_scs = is_scs
 
     def load(self, df, **kwargs):
         df, encoder = super().load(df, **kwargs)
         self.encoder = encoder
+        if not getattr(self, 'is_scs', False):
+            if hasattr(self, 'features') and self.features:
+                last_feat = self.features[-1]
+                if last_feat in encoder:
+                    classes = encoder[last_feat].classes_
+                    if any(c.startswith('sc') for c in classes):
+                        self.is_scs = True
         return df, encoder
 
     def rectified_logistic(self, intensity, features, response=None, **kw):
@@ -146,9 +182,18 @@ class rlTMSpkpkSmall(BaseModel):
 
         idx = tuple(features.T) + (slice(None),)
 
+        # SCS vs TMS motor threshold prior parameterization
+        is_scs = getattr(self, 'is_scs', False)
+        if is_scs:
+            a_loc = 5.0
+            a_scale = 10.0
+        else:
+            a_loc = 50.0
+            a_scale = 50.0
+
         with pyro.plate(site.num_response, self.num_response, dim=-1):
             with pyro.plate_stack(site.num_features, num_features, rightmost_dim=-2):
-                a = pyro.sample(site.a, dist.TruncatedNormal(50., 50., low=0.))
+                a = pyro.sample(site.a, dist.TruncatedNormal(a_loc, a_scale, low=0.))
                 b = pyro.sample(site.b, dist.HalfNormal(1.))
                 g = pyro.sample(site.g, dist.HalfNormal(.1))
                 h = pyro.sample(site.h, dist.HalfNormal(5.))
@@ -184,3 +229,19 @@ class rlTMSpkpkSmall(BaseModel):
                         Mixture if self.use_mixture else dist.Gamma(alpha, beta),
                         obs=response
                     )
+
+
+class rlaucSmall(rlpkpkSmall):
+    """Rectified Logistic model for AUC MEP size (uVs).
+    Currently mirrors rlpkpkSmall with identical priors and rectified logistic functional."""
+    pass
+
+
+class rlauc(rlpkpk):
+    """Rectified Logistic hierarchical model for AUC MEP size (uVs)."""
+    pass
+
+
+# Backward compatibility aliases
+rlTMSpkpkSmall = rlpkpkSmall
+rlTMSpkpk = rlpkpk

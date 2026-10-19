@@ -33,6 +33,33 @@ fprintf('done.\n');
 %%
 cfg_proc.hbmep.units_intensity = cfg_loaded.ramp.units;
 cfg_proc.hbmep.units_mepsize = cfg_table.units_mepsize;
+if not(isfield(cfg_proc.hbmep, 'model')) || isempty(cfg_proc.hbmep.model)
+    if ismember(lower(cfg_table.units_mepsize), {'uvs', 'µvs'})
+        cfg_proc.hbmep.model = 'rlaucSmall';
+    else
+        cfg_proc.hbmep.model = 'rlpkpkSmall';
+    end
+end
+if not(isfield(cfg_proc.hbmep, 'stim_type')) || isempty(cfg_proc.hbmep.stim_type)
+    if isfield(cfg_loaded.ramp, 'type') && strcmpi(cfg_loaded.ramp.type, 'cx')
+        cfg_proc.hbmep.stim_type = 'tms';
+    else
+        cfg_proc.hbmep.stim_type = 'scs';
+    end
+end
+if ismember(lower(cfg_table.units_mepsize), {'uvs', 'µvs'})
+    metric_str = 'AUC (Area Under Curve)';
+else
+    metric_str = 'Peak-to-Peak (pk-pk)';
+end
+
+fprintf('\n================== hbMEP Pipeline Configuration ==================\n');
+fprintf('  hbMEP Model      : %s\n', cfg_proc.hbmep.model);
+fprintf('  Stimulation Mode : %s\n', upper(cfg_proc.hbmep.stim_type));
+fprintf('  MEP Size Metric  : %s [%s]\n', metric_str, cfg_table.units_mepsize);
+fprintf('  Intensity Units  : %s\n', cfg_proc.hbmep.units_intensity);
+fprintf('==================================================================\n\n');
+
 sp.call_hbmep(p_csv, response, cfg_proc.hbmep);
 
 end

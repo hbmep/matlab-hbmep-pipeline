@@ -7,8 +7,15 @@ if not(isfield(cfg_table, 'slice'))
         't_max_size' ,  85e-3  ...
         );
 end
-if not(isfield(cfg_table, 'units_mepsize'))
-    cfg_table.units_mepsize = 'µVs';
+if not(isfield(cfg_table, 'units_mepsize')) || isempty(cfg_table.units_mepsize)
+    if isfield(cfg_loaded, 'ramp') && isfield(cfg_loaded.ramp, 'type') && strcmpi(cfg_loaded.ramp.type, 'cx')
+        cfg_table.units_mepsize = 'mV';
+    elseif isfield(cfg_loaded, 'ramp') && isfield(cfg_loaded.ramp, 'units') && (strcmpi(cfg_loaded.ramp.units, 'P-MSO') || strcmpi(cfg_loaded.ramp.units, '%'))
+        cfg_table.units_mepsize = 'mV';
+    else
+        % Default to AUC (uVs) for SCS
+        cfg_table.units_mepsize = 'uVs';
+    end
 end
 if not(isfield(cfg_table, 'throw_slicing_error'))
     cfg_table.throw_slicing_error = true;
@@ -101,10 +108,16 @@ ix_slice = floor(fs * cfg_table.slice.t_min): ceil(cfg_table.slice.t_max *fs);
 ix_slice = floor(fs * cfg_table.slice.t_min_size): ceil(cfg_table.slice.t_max_size*fs);
 [ep_sliced_size, t_sliced_size] = slice_mat(raw_table, ix_stim, ix_slice, fs, vec_channel_name);
 
-%% AUC calculation
+%% MEP size calculation (AUC or pk-pk)
+if ismember(lower(cfg_table.units_mepsize), {'µvs', 'uvs'})
+    fprintf('Calculating MEP size as AUC [units: %s]... ', cfg_table.units_mepsize);
+else
+    fprintf('Calculating MEP size as Peak-to-Peak (pk-pk) [units: %s]... ', cfg_table.units_mepsize);
+end
 for ix = 1:length(vec_channel_name)
     str_ch = vec_channel_name(ix);
-    if strcmpi(cfg_table.units_mepsize, 'µVs')
+    if ismember(lower(cfg_table.units_mepsize), {'µvs', 'uvs'})
+        cfg_table.units_mepsize = 'uVs';
         y_auc = trapz(t_sliced_size, abs(ep_sliced_size), 2) * 1e3;  % units are mV so now we get uVs
     elseif strcmpi(cfg_table.units_mepsize, 'mV')
         y_auc = max(ep_sliced_size, [], 2) - min(ep_sliced_size, [], 2); % keep in mV

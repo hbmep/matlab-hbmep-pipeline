@@ -15,7 +15,23 @@ from pathlib import Path
 import arviz as az
 
 
-def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name="rlTMSpkpkSmall", use_mixture=False, mcmc_params=None):
+def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name=None, stim_type=None, use_mixture=False, mcmc_params=None):
+    # Resolve default model based on MEP sizing units if not explicitly provided
+    if model_name is None or model_name == "rlpkpkSmall" or model_name == "rlTMSpkpkSmall":
+        if postprocessing_helper and str(postprocessing_helper.get('units_mepsize', '')).lower() in ['uvs', 'µvs']:
+            model_name = "rlaucSmall"
+        else:
+            model_name = "rlpkpkSmall"
+
+    # Resolve stim_type (SCS vs TMS)
+    if stim_type is None:
+        if postprocessing_helper and postprocessing_helper.get('stim_type'):
+            stim_type = str(postprocessing_helper['stim_type']).lower()
+        elif postprocessing_helper and postprocessing_helper.get('units_intensity') == 'mA':
+            stim_type = "scs"
+        else:
+            stim_type = "tms"
+
     # Load hbMEP configuration
     cfg_hbmep = local_models.Config(toml_path=p_hbmep_config)
     if mcmc_params:
@@ -48,16 +64,30 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
         },
         "mcmc": cfg_hbmep.MCMC_PARAMS,
         "mep_data": cfg_hbmep.MEP_DATA,
+        "stim_type": stim_type,
     }
     
     model_class = getattr(local_models, model_name)
-    model = model_class(config=base_config)
+    model = model_class(config=base_config, stim_type=stim_type)
+    model.stim_type = stim_type
+    model.is_scs = (stim_type.lower() == 'scs')
     
     # Set mixture mode
     model.use_mixture = use_mixture
     
     model._model = model.rectified_logistic
     model.build_dir = d_output
+
+    metric_label = "AUC (Area Under Curve)" if (model_name.startswith("rlauc") or "uvs" in str(postprocessing_helper.get('units_mepsize', '')).lower()) else "Peak-to-Peak (pk-pk)"
+    stim_label = "SCS (Spinal Cord Stimulation)" if model.is_scs else "TMS (Transcranial Magnetic Stimulation)"
+    prior_a_desc = "mean=5.0, sd=10.0 [low=0]" if model.is_scs else "mean=50.0, sd=50.0 [low=0]"
+
+    print("=" * 65)
+    print(f"  hbMEP Model Selected : {model_name}")
+    print(f"  Stimulation Source   : {stim_label}")
+    print(f"  MEP Size Metric      : {metric_label} [{postprocessing_helper.get('units_mepsize')}]")
+    print(f"  Threshold Prior      : a ~ TruncatedNormal({prior_a_desc})")
+    print("=" * 65)
 
     # Load data into the model
     df, encoder_dict = model.load(df=dfo)

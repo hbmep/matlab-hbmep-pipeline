@@ -11,6 +11,16 @@ end
 if not(isfield(cfg_hbmep, 'p_postproc'))
     cfg_hbmep.p_postproc = '';
 end
+if not(isfield(cfg_hbmep, 'model')) || isempty(cfg_hbmep.model)
+    if isfield(cfg_hbmep, 'units_mepsize') && ismember(lower(cfg_hbmep.units_mepsize), {'uvs', 'µvs'})
+        cfg_hbmep.model = 'rlaucSmall';
+    else
+        cfg_hbmep.model = 'rlpkpkSmall';
+    end
+end
+if not(isfield(cfg_hbmep, 'stim_type')) || isempty(cfg_hbmep.stim_type)
+    cfg_hbmep.stim_type = 'tms';
+end
 if not(isfield(cfg_hbmep, 'use_mixture')) || isempty(cfg_hbmep.use_mixture) || (ischar(cfg_hbmep.use_mixture) && isempty(cfg_hbmep.use_mixture))
     vec_mixture = false;
 elseif islogical(cfg_hbmep.use_mixture)
@@ -57,6 +67,8 @@ p_csv = q(p_csv);
 response = char(response);
 units_intensity = char(cfg_hbmep.units_intensity);
 units_mepsize = char(cfg_hbmep.units_mepsize);
+model_name = char(cfg_hbmep.model);
+stim_type = char(cfg_hbmep.stim_type);
 
 for use_mixture = vec_mixture
     if use_mixture
@@ -67,9 +79,23 @@ for use_mixture = vec_mixture
         str_mixture = '';
     end
     
+    if ismember(lower(units_mepsize), {'uvs', 'µvs'})
+        metric_str = 'AUC (Area Under Curve)';
+    else
+        metric_str = 'Peak-to-Peak (pk-pk)';
+    end
+    fprintf('\n------------------ Executing hbMEP MCMC ------------------\n');
+    fprintf('  Model            : %s\n', model_name);
+    fprintf('  Stimulation Mode : %s\n', upper(stim_type));
+    fprintf('  MEP Metric       : %s [%s]\n', metric_str, units_mepsize);
+    fprintf('  Mixture Outliers : %s\n', string(use_mixture));
+    fprintf('  MCMC Parameters  : warmup=%d, samples=%d, chains=%d, thinning=%d\n', ...
+        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning);
+    fprintf('----------------------------------------------------------\n\n');
+
     % Build the system call
-    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d %s', ...
-        p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, ...
+    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --model %s --stim_type %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d %s', ...
+        p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, model_name, stim_type, ...
         cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, str_mixture);
     
     fprintf('Calling:\n')

@@ -77,7 +77,8 @@ if __name__ == "__main__":
         parser.add_argument("--units_intensity", default="A. U.", help="Units of intensity.")
         parser.add_argument("--units_mepsize", default="A. U.", help="Units of MEP size.")
         parser.add_argument("--p_postproc", default="", help="Path to post-processing module.")
-        parser.add_argument("--model", default="rlTMSpkpkSmall", help="Model class to use.")
+        parser.add_argument("--model", default="rlpkpkSmall", help="Model class to use.")
+        parser.add_argument("--stim_type", default=None, help="Stimulation type: 'scs' or 'tms'.")
         parser.add_argument("--use_mixture", action="store_true", help="Use mixture model for outliers.")
         parser.add_argument("--num_warmup", type=int, default=400, help="Number of warmup iterations.")
         parser.add_argument("--num_samples", type=int, default=400, help="Number of samples.")
@@ -96,6 +97,7 @@ if __name__ == "__main__":
     postprocessing_helper['units_mepsize'] = args.units_mepsize
     postprocessing_helper['units_intensity'] = args.units_intensity
     postprocessing_helper['d_output'] = args.d_output
+    postprocessing_helper['stim_type'] = getattr(args, 'stim_type', None)
 
     run_model.main(
         p_csv=args.p_csv,
@@ -104,6 +106,7 @@ if __name__ == "__main__":
         p_postproc=args.p_postproc,
         postprocessing_helper=postprocessing_helper,
         model_name=args.model,
+        stim_type=getattr(args, 'stim_type', None),
         use_mixture=args.use_mixture,
         mcmc_params=mcmc_params,
         #p_hbmep_config=args.p_hbmep_config,

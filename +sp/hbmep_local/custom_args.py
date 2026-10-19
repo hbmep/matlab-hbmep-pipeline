@@ -15,7 +15,8 @@ args = SimpleNamespace(
     p_postproc = '',
     units_mepsize = 'A. U.',
     units_intensity = 'A. U.',
-    model = 'rlTMSpkpkSmall',
+    model = 'rlpkpkSmall',
+    stim_type = 'tms',
     use_mixture = False,
 )
 
