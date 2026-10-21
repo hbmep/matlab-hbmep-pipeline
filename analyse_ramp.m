@@ -7,7 +7,10 @@ if nargin < 4
     cfg_proc = struct;
 end
 if not(isfield(cfg_proc, 'loader'))
-    cfg_proc.loader = [];
+    cfg_proc.loader = struct;
+end
+if isempty(cfg_proc.loader) || not(isfield(cfg_proc.loader, 'line_noise_suppression'))
+    cfg_proc.loader.line_noise_suppression = 'kalman';
 end
 if not(isfield(cfg_proc, 'table'))
     cfg_proc.table = [];

@@ -45,6 +45,12 @@ end
 if not(isfield(cfg_hbmep, 'thinning')) || isempty(cfg_hbmep.thinning)
     cfg_hbmep.thinning = 1;
 end
+if not(isfield(cfg_hbmep, 'max_tree_depth')) || isempty(cfg_hbmep.max_tree_depth)
+    cfg_hbmep.max_tree_depth = 10;
+end
+if not(isfield(cfg_hbmep, 'target_accept_prob')) || isempty(cfg_hbmep.target_accept_prob)
+    cfg_hbmep.target_accept_prob = 0.8;
+end
 
 %%
 response = response.join(' ');
@@ -100,9 +106,9 @@ for use_mixture = vec_mixture
     fprintf('----------------------------------------------------------\n\n');
 
     % Build the system call
-    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --model %s --stim_type %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d %s', ...
+    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --model %s --stim_type %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d --max_tree_depth %d --target_accept_prob %0.2f %s', ...
         p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, model_name, stim_type, ...
-        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, str_mixture);
+        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, cfg_hbmep.max_tree_depth, cfg_hbmep.target_accept_prob, str_mixture);
     
     fprintf('Calling:\n')
     fprintf('%s\n\n', command);

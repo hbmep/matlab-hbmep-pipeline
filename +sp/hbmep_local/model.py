@@ -23,8 +23,8 @@ class Config:
             "thinning": 1,
         }
         self.NUTS = {
-            "max_tree_depth": (15, 15),
-            "target_accept_prob": 0.95,
+            "max_tree_depth": (10, 10),
+            "target_accept_prob": 0.8,
         }
         self.MEP_DATA = {
             "mep_matrix_path": "",

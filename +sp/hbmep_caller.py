@@ -84,6 +84,8 @@ if __name__ == "__main__":
         parser.add_argument("--num_samples", type=int, default=400, help="Number of samples.")
         parser.add_argument("--num_chains", type=int, default=4, help="Number of MCMC chains.")
         parser.add_argument("--thinning", type=int, default=1, help="Thinning factor.")
+        parser.add_argument("--max_tree_depth", type=int, default=10, help="Maximum tree depth for NUTS.")
+        parser.add_argument("--target_accept_prob", type=float, default=0.8, help="Target acceptance probability for NUTS.")
 
         args = parser.parse_args()
         mcmc_params = {
@@ -91,6 +93,10 @@ if __name__ == "__main__":
             "num_samples": args.num_samples,
             "num_chains": args.num_chains,
             "thinning": args.thinning,
+        }
+        nuts_params = {
+            "max_tree_depth": (args.max_tree_depth, args.max_tree_depth),
+            "target_accept_prob": args.target_accept_prob,
         }
 
     postprocessing_helper = {}
@@ -109,5 +115,6 @@ if __name__ == "__main__":
         stim_type=getattr(args, 'stim_type', None),
         use_mixture=args.use_mixture,
         mcmc_params=mcmc_params,
+        nuts_params=nuts_params,
         #p_hbmep_config=args.p_hbmep_config,
     )

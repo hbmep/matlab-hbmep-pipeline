@@ -15,7 +15,7 @@ from pathlib import Path
 import arviz as az
 
 
-def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name=None, stim_type=None, use_mixture=False, mcmc_params=None):
+def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_config=None, model_name=None, stim_type=None, use_mixture=False, mcmc_params=None, nuts_params=None):
     # Resolve default model based on MEP sizing units if not explicitly provided
     if model_name is None or model_name == "rlpkpkSmall" or model_name == "rlTMSpkpkSmall":
         if postprocessing_helper and str(postprocessing_helper.get('units_mepsize', '')).lower() in ['uvs', 'µvs']:
@@ -38,6 +38,10 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
         for k, v in mcmc_params.items():
             if v is not None:
                 cfg_hbmep.MCMC_PARAMS[k] = v
+    if nuts_params:
+        for k, v in nuts_params.items():
+            if v is not None:
+                cfg_hbmep.NUTS[k] = v
     dfo = pd.read_csv(str(p_csv))
 
     # Clean and preprocess data
