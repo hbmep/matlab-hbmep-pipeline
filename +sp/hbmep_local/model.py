@@ -49,7 +49,10 @@ class rlpkpk(BaseModel):
             self.is_scs = is_scs
 
     def load(self, df, **kwargs):
-        df, encoder = super().load(df, **kwargs)
+        if hasattr(super(), 'load'):
+            df, encoder = super().load(df, **kwargs)
+        else:
+            df, encoder = super().process(df, **kwargs)
         self.encoder = encoder
         if not getattr(self, 'is_scs', False):
             if hasattr(self, 'features') and self.features:
@@ -59,6 +62,9 @@ class rlpkpk(BaseModel):
                     if any(c.startswith('sc') for c in classes):
                         self.is_scs = True
         return df, encoder
+
+    def process(self, df, **kwargs):
+        return self.load(df, **kwargs)
 
     def rectified_logistic(self, intensity, features, response=None, **kw):
         num_data = intensity.shape[0]
@@ -158,7 +164,10 @@ class rlpkpkSmall(BaseModel):
             self.is_scs = is_scs
 
     def load(self, df, **kwargs):
-        df, encoder = super().load(df, **kwargs)
+        if hasattr(super(), 'load'):
+            df, encoder = super().load(df, **kwargs)
+        else:
+            df, encoder = super().process(df, **kwargs)
         self.encoder = encoder
         if not getattr(self, 'is_scs', False):
             if hasattr(self, 'features') and self.features:
@@ -168,6 +177,9 @@ class rlpkpkSmall(BaseModel):
                     if any(c.startswith('sc') for c in classes):
                         self.is_scs = True
         return df, encoder
+
+    def process(self, df, **kwargs):
+        return self.load(df, **kwargs)
 
     def rectified_logistic(self, intensity, features, response=None, **kw):
         num_data = intensity.shape[0]

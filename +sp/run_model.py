@@ -63,6 +63,9 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
             "response": cfg_hbmep.RESPONSE,
         },
         "mcmc": cfg_hbmep.MCMC_PARAMS,
+        "mcmc_kw": cfg_hbmep.MCMC_PARAMS,
+        "nuts": cfg_hbmep.NUTS,
+        "nuts_kw": cfg_hbmep.NUTS,
         "mep_data": cfg_hbmep.MEP_DATA,
         "stim_type": stim_type,
     }
@@ -95,9 +98,23 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
         df[f] = df[f].astype(np.int64)
 
     inference_path = Path(cfg_hbmep.BUILD_DIR) / 'inference.pkl'
+    use_cache = False
     if inference_path.exists():
-        with open(inference_path, "rb") as f:
-            model, mcmc, posterior_samples = pickle.load(f)
+        try:
+            csv_mtime = Path(p_csv).stat().st_mtime
+            pkl_mtime = inference_path.stat().st_mtime
+            if pkl_mtime >= csv_mtime:
+                with open(inference_path, "rb") as f:
+                    cached_model, cached_mcmc, cached_posterior = pickle.load(f)
+                if type(cached_model).__name__ == model_name:
+                    model, mcmc, posterior_samples = cached_model, cached_mcmc, cached_posterior
+                    use_cache = True
+                    print(f"Loaded valid cached hbMEP inference ({model_name}) from {inference_path}")
+        except Exception as e:
+            print(f"Warning: Failed to load cached inference ({e}), recomputing.")
+            use_cache = False
+
+    if use_cache:
         
         # Patch for older pickle files where attributes were named differently
         if 'response' in model.__dict__ and not hasattr(model, '_response'):

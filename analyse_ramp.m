@@ -60,6 +60,10 @@ fprintf('  MEP Size Metric  : %s [%s]\n', metric_str, cfg_table.units_mepsize);
 fprintf('  Intensity Units  : %s\n', cfg_proc.hbmep.units_intensity);
 fprintf('==================================================================\n\n');
 
-sp.call_hbmep(p_csv, response, cfg_proc.hbmep);
+if not(isfield(cfg_proc, 'run_hbmep')) || cfg_proc.run_hbmep
+    sp.call_hbmep(p_csv, response, cfg_proc.hbmep);
+else
+    fprintf('Skipping hbMEP MCMC model execution (run_hbmep is false).\n');
+end
 
 end

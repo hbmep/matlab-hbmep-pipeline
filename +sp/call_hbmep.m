@@ -60,6 +60,12 @@ else
     p_hbmep = q(fullfile(d_hbmep, 'bin', 'python'));
 end
 
+if ~exist(replace(p_hbmep, '"', ''), 'file')
+    warning('sp:call_hbmep:PythonNotFound', ...
+        'hbMEP Python environment not found at: %s.\nSkipping hbMEP MCMC fitting.', replace(p_hbmep, '"', ''));
+    return;
+end
+
 p_hbmep_function = q(fullfile(getenv('D_MHBMEP_GIT'), '+sp', 'hbmep_caller.py'));
 d_output = q(strrep(p_csv, '.csv', sprintf('_hbmep%s', cfg_hbmep.es)));
 p_postproc = q(cfg_hbmep.p_postproc);
