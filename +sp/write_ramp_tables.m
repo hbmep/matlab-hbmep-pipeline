@@ -53,7 +53,52 @@ if isempty(d_proc)
     error('set env first');
 end
 
-d_out = fullfile(d_proc, cfg_loaded.filename);
+% Resolve source data folder name (e.g. SCI-01v01_2026-10-26) to nest proc outputs
+folder_source = '';
+if isfield(cfg_table, 'folder') && ~isempty(cfg_table.folder)
+    folder_source = char(cfg_table.folder);
+elseif isfield(cfg_loaded, 'folder') && ~isempty(cfg_loaded.folder)
+    folder_source = char(cfg_loaded.folder);
+elseif isfield(cfg_loaded, 'p_data') && ~isempty(cfg_loaded.p_data)
+    if iscell(cfg_loaded.p_data), p_first = char(cfg_loaded.p_data{1}); elseif isstring(cfg_loaded.p_data), p_first = char(cfg_loaded.p_data(1)); else, p_first = char(cfg_loaded.p_data); end
+    [p_dir_1, ~, ~] = fileparts(p_first);
+    while endsWith(p_dir_1, '/') || endsWith(p_dir_1, '\')
+        p_dir_1 = p_dir_1(1:end-1);
+    end
+    [~, folder_source, ~] = fileparts(p_dir_1);
+elseif isfield(cfg_table, 'p_data') && ~isempty(cfg_table.p_data)
+    if iscell(cfg_table.p_data), p_first = char(cfg_table.p_data{1}); elseif isstring(cfg_table.p_data), p_first = char(cfg_table.p_data(1)); else, p_first = char(cfg_table.p_data); end
+    [p_dir_1, ~, ~] = fileparts(p_first);
+    while endsWith(p_dir_1, '/') || endsWith(p_dir_1, '\')
+        p_dir_1 = p_dir_1(1:end-1);
+    end
+    [~, folder_source, ~] = fileparts(p_dir_1);
+end
+
+% Prevent duplicate nesting if folder_source matches d_proc/d_data directory name, or is empty/root
+d_proc_clean = d_proc;
+while endsWith(d_proc_clean, '/') || endsWith(d_proc_clean, '\')
+    d_proc_clean = d_proc_clean(1:end-1);
+end
+[~, proc_name, ~] = fileparts(d_proc_clean);
+
+d_data = getenv('D_DATA');
+d_data_clean = d_data;
+while endsWith(d_data_clean, '/') || endsWith(d_data_clean, '\')
+    d_data_clean = d_data_clean(1:end-1);
+end
+[~, data_name, ~] = fileparts(d_data_clean);
+
+if ~isempty(folder_source) && ...
+   ~strcmpi(folder_source, proc_name) && ...
+   ~strcmpi(folder_source, data_name) && ...
+   ~endsWith(folder_source, ':') && ...
+   ~strcmp(folder_source, '.') && ...
+   ~strcmp(folder_source, '..')
+    d_out = fullfile(d_proc, folder_source, cfg_loaded.filename);
+else
+    d_out = fullfile(d_proc, cfg_loaded.filename);
+end
 p_csv_out = fullfile(d_out, sprintf('%s_mepsize.csv', cfg_loaded.filename));
 if not(exist(d_out, 'dir') == 7)
     mkdir(d_out);

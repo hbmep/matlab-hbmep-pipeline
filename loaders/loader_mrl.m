@@ -92,7 +92,14 @@ trigger_table.intensity = trigger_table.(sprintf('%s_amplitude', ramp_type));
 
 %% Minimum config information:
 cfg_aq = struct;
-[~, cfg_aq.filename, ~] = fileparts(p_data);  % filename (to name directories)
+if iscell(p_data), p_first = char(p_data{1}); elseif isstring(p_data), p_first = char(p_data(1)); else, p_first = char(p_data); end
+[p_dir_1, cfg_aq.filename, ~] = fileparts(p_first);  % filename (to name directories)
+while endsWith(p_dir_1, '/') || endsWith(p_dir_1, '\')
+    p_dir_1 = p_dir_1(1:end-1);
+end
+[~, folder_source, ~] = fileparts(p_dir_1);
+cfg_aq.folder = folder_source;
+cfg_aq.p_data = p_data;
 cfg_aq.daq.fs = double(cfg.daq.fs);  % sampling rate
 cfg_aq.ramp.trigger = cfg.ramp.trigger;  % the name of the channel where the sampling rate is
 cfg_aq.ramp.units = cfg.ramp.units;  % e.g. mA or %MSO

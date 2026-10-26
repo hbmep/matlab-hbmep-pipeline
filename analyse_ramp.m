@@ -28,6 +28,19 @@ end
 loader_custom = eval(sprintf('@(p, c) %s(p, c)', h_loader));
 [raw_table, trigger_table, cfg_loaded] = loader_custom(p_data, cfg_proc.loader);
 
+if ~isfield(cfg_loaded, 'p_data') || isempty(cfg_loaded.p_data)
+    cfg_loaded.p_data = p_data;
+end
+if ~isfield(cfg_loaded, 'folder') || isempty(cfg_loaded.folder)
+    if iscell(p_data), p_first = char(p_data{1}); elseif isstring(p_data), p_first = char(p_data(1)); else, p_first = char(p_data); end
+    [p_dir_1, ~, ~] = fileparts(p_first);
+    while endsWith(p_dir_1, '/') || endsWith(p_dir_1, '\')
+        p_dir_1 = p_dir_1(1:end-1);
+    end
+    [~, folder_source, ~] = fileparts(p_dir_1);
+    cfg_loaded.folder = folder_source;
+end
+
 %%
 fprintf('Writing tables... ');
 [p_csv, cfg_table] = sp.write_ramp_tables(raw_table, trigger_table, cfg_loaded, cfg_proc.table);
