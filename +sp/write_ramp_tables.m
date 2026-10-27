@@ -139,28 +139,130 @@ if not(isempty(time_zero_augment))
     assert(all(isfinite(time_zero_augment)), "?");
     mepsize_table.augmented(:) = false;
 
-    case_augment = mepsize_table.cx_amplitude > 0 | mepsize_table.es_amplitude > 0;
+    if ismember('intensity', mepsize_table.Properties.VariableNames)
+        case_augment = double(mepsize_table.intensity) > 0;
+    else
+        case_augment = false(height(mepsize_table), 1);
+        for col_cand = ["cx_amplitude", "es_amplitude", "sc_amplitude", "amplitude"]
+            if ismember(col_cand, mepsize_table.Properties.VariableNames)
+                case_augment = case_augment | (double(mepsize_table.(col_cand)) > 0);
+            end
+        end
+    end
     mepsize_table_augment_base = mepsize_table(case_augment, :);
 
     mepsize_table_augment_base.augmented(:) = true;
     ix_stim_augment_base = ix_stim(case_augment);
-    mepsize_table_augment_base.cx_amplitude(:) = 0;
-    mepsize_table_augment_base.es_amplitude(:) = 0;
-    mepsize_table_augment_base.intensity(:) = 0;
+
+    % Zero out any stimulus intensity and amplitude columns present
+    for col_amp = ["intensity", "cx_amplitude", "es_amplitude", "sc_amplitude", "amplitude", ...
+                   "sc1_amplitude", "sc2_amplitude", "sc3_amplitude", "sc4_amplitude", ...
+                   "sc5_amplitude", "sc6_amplitude", "sc7_amplitude", "sc8_amplitude"]
+        if ismember(col_amp, mepsize_table_augment_base.Properties.VariableNames)
+            mepsize_table_augment_base.(col_amp)(:) = 0;
+        end
+    end
+
+    % Set pulse counts to 1 for augmented baseline trials
+    for col_cnt = ["pulse_count", "sc_count", "cx_count", "count"]
+        if ismember(col_cnt, mepsize_table_augment_base.Properties.VariableNames)
+            mepsize_table_augment_base.(col_cnt)(:) = 1;
+        end
+    end
+
+    % Resolve all individual pulse triggers in raw data to determine pulse train durations
+    if ismember('stim_pulse_trigger', raw_table.Properties.VariableNames)
+        all_p_trigs_all = find(raw_table.stim_pulse_trigger);
+    elseif isfield(cfg_loaded, 'ramp') && isfield(cfg_loaded.ramp, 'stim_hw') && ismember(cfg_loaded.ramp.stim_hw, raw_table.Properties.VariableNames)
+        tr_sig_all = raw_table.(cfg_loaded.ramp.stim_hw) > 0.5;
+        all_p_trigs_all = find([0; diff(tr_sig_all)] > 0);
+    else
+        all_p_trigs_all = ix_stim;
+    end
+
+    orig_indices = find(case_augment);
+    aug_pi_all = cell(0, 1);
+    t_min_slice_s = cfg_table.slice.t_min;
+    t_max_size_s = cfg_table.slice.t_max_size;
 
     for ix_augment = 1:length(time_zero_augment)
         t_zero = time_zero_augment(ix_augment);
-        mepsize_table_augment = mepsize_table_augment_base;
-        mepsize_table_augment.datetime = mepsize_table_augment_base.datetime - t_zero*seconds;
-        ix_stim_augment = ix_stim_augment_base - t_zero * fs;
+        n_cand = height(mepsize_table_augment_base);
+        is_valid = true(n_cand, 1);
+        ix_stim_aug_cand = zeros(n_cand, 1);
 
-        mepsize_table = [mepsize_table; mepsize_table_augment];
-        ix_stim = [ix_stim; ix_stim_augment];
+        for i_cand = 1:n_cand
+            idx_orig = orig_indices(i_cand);
+            s_curr = ix_stim_augment_base(i_cand);
+            s_zero = round(s_curr - t_zero * fs);
+            ix_stim_aug_cand(i_cand) = s_zero;
+
+            zero_slice_start = s_zero + floor(t_min_slice_s * fs);
+            zero_slice_end   = s_zero + ceil(t_max_size_s * fs);
+
+            % 1. Must be within recording bounds
+            if zero_slice_start < 1 || zero_slice_end > height(raw_table)
+                is_valid(i_cand) = false;
+                continue;
+            end
+
+            % 2. Must not bleed into the current trial stimulus pulse
+            if zero_slice_end >= s_curr
+                is_valid(i_cand) = false;
+                continue;
+            end
+
+            % 3. Must not overlap with previous trial's pulse train + 150 ms
+            if idx_orig > 1
+                s_prev = ix_stim(idx_orig - 1);
+                p_prev = all_p_trigs_all(all_p_trigs_all >= s_prev & all_p_trigs_all < s_curr);
+                if ~isempty(p_prev)
+                    last_p_prev = p_prev(end);
+                else
+                    last_p_prev = s_prev;
+                end
+                bleed_limit = last_p_prev + round(0.150 * fs); % 150 ms recovery
+
+                if zero_slice_start <= bleed_limit
+                    is_valid(i_cand) = false;
+                    continue;
+                end
+            end
+        end
+
+        if any(is_valid)
+            mepsize_table_augment = mepsize_table_augment_base(is_valid, :);
+            mepsize_table_augment.datetime = mepsize_table_augment.datetime - t_zero*seconds;
+            ix_stim_augment = ix_stim_aug_cand(is_valid);
+
+            mepsize_table = [mepsize_table; mepsize_table_augment];
+            ix_stim = [ix_stim; ix_stim_augment];
+
+            aug_pi_k = cell(numel(ix_stim_augment), 1);
+            for a_i = 1:numel(ix_stim_augment)
+                aug_pi_k{a_i} = ix_stim_augment(a_i);
+            end
+            aug_pi_all = [aug_pi_all; aug_pi_k];
+        end
+
+        n_skipped = sum(~is_valid);
+        if n_skipped > 0
+            fprintf('  [time_zero_augment] %.2fs pre-pulse zero augmentation: kept %d trials, skipped %d trials (out of bounds or previous pulse bleed-out within +150ms).\n', ...
+                t_zero, sum(is_valid), n_skipped);
+        end
     end
     [~, vec_sort] = sort(mepsize_table.datetime);
     mepsize_table = mepsize_table(vec_sort, :);
     ix_stim = ix_stim(vec_sort);
     n_trials = height(mepsize_table);
+
+    if isfield(cfg_loaded, 'trial_pulse_indices') && ~isempty(cfg_loaded.trial_pulse_indices)
+        orig_pi = cfg_loaded.trial_pulse_indices(:);
+        all_pi = [orig_pi; aug_pi_all];
+        if numel(all_pi) == n_trials
+            cfg_loaded.trial_pulse_indices = all_pi(vec_sort);
+        end
+    end
 end
 
 %% Multi-pulse train detection
@@ -319,30 +421,49 @@ for ix = 1:length(vec_channel_name)
         ep_sliced_raw(j_tr, :, ix) = y_raw;
 
         if is_train && is_auc && is_emg(ix)
-            p_idxs = trial_pulse_indices{j_tr};
-            p_rel = p_idxs - s_first - ix_slice(1) + 1;
-
-            [y_clean, ~] = local_blank_and_interpolate(y_raw, p_rel, fs, t_blank_pre, t_blank_post);
-            ep_sliced(j_tr, :, ix) = y_clean;
-
-            % Calculate AUC from t_first + t_min_size to t_last + t_max_size
-            i_auc_start = round((cfg_table.slice.t_min_size - cfg_table.slice.t_min) * fs) + 1;
-            t_last_rel = (p_idxs(end) - p_idxs(1)) / fs;
-            i_auc_end = round((t_last_rel + cfg_table.slice.t_max_size - cfg_table.slice.t_min) * fs) + 1;
-
-            i_auc_start = max(1, min(n_samples_vis, i_auc_start));
-            i_auc_end = max(1, min(n_samples_vis, i_auc_end));
-
-            if i_auc_end > i_auc_start
-                y_auc_seg = y_clean(i_auc_start:i_auc_end);
-                t_auc_seg = (0:(numel(y_auc_seg)-1)) / fs;
-                auc_raw = trapz(t_auc_seg, abs(y_auc_seg)) * 1e3; % in uVs
+            if ismember('augmented', mepsize_table.Properties.VariableNames) && mepsize_table.augmented(j_tr)
+                ep_sliced(j_tr, :, ix) = y_raw;
+                i_auc_start = round((cfg_table.slice.t_min_size - cfg_table.slice.t_min) * fs) + 1;
+                i_auc_end = round((cfg_table.slice.t_max_size - cfg_table.slice.t_min) * fs) + 1;
+                i_auc_start = max(1, min(n_samples_vis, i_auc_start));
+                i_auc_end = max(1, min(n_samples_vis, i_auc_end));
+                if i_auc_end > i_auc_start
+                    y_auc_seg = y_raw(i_auc_start:i_auc_end);
+                    t_auc_seg = (0:(numel(y_auc_seg)-1)) / fs;
+                    auc_raw = trapz(t_auc_seg, abs(y_auc_seg)) * 1e3;
+                else
+                    auc_raw = 0;
+                end
+                mepsize_table.(str_ch)(j_tr) = auc_raw;
             else
-                auc_raw = 0;
-            end
+                p_idxs = trial_pulse_indices{j_tr};
+                if isempty(p_idxs)
+                    p_idxs = s_first;
+                end
+                p_rel = p_idxs - s_first - ix_slice(1) + 1;
 
-            n_p = max(1, trial_n_pulses(j_tr));
-            mepsize_table.(str_ch)(j_tr) = auc_raw / n_p;
+                [y_clean, ~] = local_blank_and_interpolate(y_raw, p_rel, fs, t_blank_pre, t_blank_post);
+                ep_sliced(j_tr, :, ix) = y_clean;
+
+                % Calculate AUC from t_first + t_min_size to t_last + t_max_size
+                i_auc_start = round((cfg_table.slice.t_min_size - cfg_table.slice.t_min) * fs) + 1;
+                t_last_rel = (p_idxs(end) - p_idxs(1)) / fs;
+                i_auc_end = round((t_last_rel + cfg_table.slice.t_max_size - cfg_table.slice.t_min) * fs) + 1;
+
+                i_auc_start = max(1, min(n_samples_vis, i_auc_start));
+                i_auc_end = max(1, min(n_samples_vis, i_auc_end));
+
+                if i_auc_end > i_auc_start
+                    y_auc_seg = y_clean(i_auc_start:i_auc_end);
+                    t_auc_seg = (0:(numel(y_auc_seg)-1)) / fs;
+                    auc_raw = trapz(t_auc_seg, abs(y_auc_seg)) * 1e3; % in uVs
+                else
+                    auc_raw = 0;
+                end
+
+                n_p = max(1, trial_n_pulses(j_tr));
+                mepsize_table.(str_ch)(j_tr) = auc_raw / n_p;
+            end
         else
             ep_sliced(j_tr, :, ix) = y_raw;
         end
