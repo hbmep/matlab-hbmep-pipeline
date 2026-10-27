@@ -33,6 +33,15 @@ else
     vec_mixture = false;
 end
 
+if not(isfield(cfg_hbmep, 'use_ima')) || isempty(cfg_hbmep.use_ima)
+    use_ima = false;
+else
+    use_ima = logical(cfg_hbmep.use_ima);
+end
+if not(isfield(cfg_hbmep, 'ima_params'))
+    cfg_hbmep.ima_params = struct;
+end
+
 if not(isfield(cfg_hbmep, 'num_warmup')) || isempty(cfg_hbmep.num_warmup)
     cfg_hbmep.num_warmup = 400;
 end
@@ -83,13 +92,36 @@ model_name = char(cfg_hbmep.model);
 stim_type = char(cfg_hbmep.stim_type);
 
 for use_mixture = vec_mixture
+    suffix = '';
     if use_mixture
-        d_output_local = sprintf('%s_with_mixture', d_output);
+        suffix = [suffix '_with_mixture'];
         str_mixture = '--use_mixture';
     else
-        d_output_local = d_output;
         str_mixture = '';
     end
+    if use_ima
+        suffix = [suffix '_with_ima'];
+        str_ima = '--use_ima';
+        % Prepare output directory and write ima_params.json
+        d_out_unquoted = replace(d_output, '"', '');
+        p_target_dir = sprintf('%s%s', d_out_unquoted, suffix);
+        if ~exist(p_target_dir, 'dir')
+            mkdir(p_target_dir);
+        end
+        p_ima_json = fullfile(p_target_dir, 'ima_params.json');
+        fid = fopen(p_ima_json, 'w');
+        if fid ~= -1
+            fprintf(fid, '%s', jsonencode(cfg_hbmep.ima_params));
+            fclose(fid);
+            str_ima_params = sprintf('--p_ima_params "%s"', p_ima_json);
+        else
+            str_ima_params = '';
+        end
+    else
+        str_ima = '';
+        str_ima_params = '';
+    end
+    d_output_local = sprintf('%s%s', d_output, suffix);
     
     if ismember(lower(units_mepsize), {'uvs', 'µvs'})
         metric_str = 'AUC (Area Under Curve)';
@@ -101,14 +133,16 @@ for use_mixture = vec_mixture
     fprintf('  Stimulation Mode : %s\n', upper(stim_type));
     fprintf('  MEP Metric       : %s [%s]\n', metric_str, units_mepsize);
     fprintf('  Mixture Outliers : %s\n', string(use_mixture));
+    fprintf('  IMA (Involuntary): %s\n', string(use_ima));
     fprintf('  MCMC Parameters  : warmup=%d, samples=%d, chains=%d, thinning=%d\n', ...
         cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning);
     fprintf('----------------------------------------------------------\n\n');
 
     % Build the system call
-    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --model %s --stim_type %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d --max_tree_depth %d --target_accept_prob %0.2f %s', ...
+    command = sprintf('%s %s --p_csv %s --response %s --units_mepsize %s --units_intensity %s --d_output %s --p_postproc %s --model %s --stim_type %s --num_warmup %d --num_samples %d --num_chains %d --thinning %d --max_tree_depth %d --target_accept_prob %0.2f %s %s %s', ...
         p_hbmep, p_hbmep_function, p_csv, response, units_mepsize, units_intensity, d_output_local, p_postproc, model_name, stim_type, ...
-        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, cfg_hbmep.max_tree_depth, cfg_hbmep.target_accept_prob, str_mixture);
+        cfg_hbmep.num_warmup, cfg_hbmep.num_samples, cfg_hbmep.num_chains, cfg_hbmep.thinning, cfg_hbmep.max_tree_depth, cfg_hbmep.target_accept_prob, ...
+        str_mixture, str_ima, str_ima_params);
     
     fprintf('Calling:\n')
     fprintf('%s\n\n', command);

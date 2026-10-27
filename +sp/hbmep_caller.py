@@ -80,6 +80,9 @@ if __name__ == "__main__":
         parser.add_argument("--model", default="rlpkpkSmall", help="Model class to use.")
         parser.add_argument("--stim_type", default=None, help="Stimulation type: 'scs' or 'tms'.")
         parser.add_argument("--use_mixture", action="store_true", help="Use mixture model for outliers.")
+        parser.add_argument("--use_ima", action="store_true", help="Use Involuntary Motor Activity (IMA) model.")
+        parser.add_argument("--p_ima_params", default="", help="Path to JSON file with IMA parameters.")
+        parser.add_argument("--ima_params", default="", help="Inline JSON string with IMA parameters.")
         parser.add_argument("--num_warmup", type=int, default=400, help="Number of warmup iterations.")
         parser.add_argument("--num_samples", type=int, default=400, help="Number of samples.")
         parser.add_argument("--num_chains", type=int, default=4, help="Number of MCMC chains.")
@@ -99,6 +102,20 @@ if __name__ == "__main__":
             "target_accept_prob": args.target_accept_prob,
         }
 
+    import json
+    ima_params = {}
+    if getattr(args, 'p_ima_params', None) and os.path.isfile(args.p_ima_params):
+        try:
+            with open(args.p_ima_params, 'r') as f:
+                ima_params = json.load(f)
+        except Exception as e:
+            print(f"Warning: Failed to load IMA parameters from {args.p_ima_params}: {e}")
+    elif getattr(args, 'ima_params', None):
+        try:
+            ima_params = json.loads(args.ima_params)
+        except Exception as e:
+            print(f"Warning: Failed to parse IMA parameters JSON: {e}")
+
     postprocessing_helper = {}
     postprocessing_helper['units_mepsize'] = args.units_mepsize
     postprocessing_helper['units_intensity'] = args.units_intensity
@@ -114,6 +131,8 @@ if __name__ == "__main__":
         model_name=args.model,
         stim_type=getattr(args, 'stim_type', None),
         use_mixture=args.use_mixture,
+        use_ima=getattr(args, 'use_ima', False),
+        ima_params=ima_params,
         mcmc_params=mcmc_params,
         nuts_params=nuts_params,
         #p_hbmep_config=args.p_hbmep_config,

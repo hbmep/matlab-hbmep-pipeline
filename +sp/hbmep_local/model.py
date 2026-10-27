@@ -34,12 +34,45 @@ class Config:
         }
 
 
+def get_ima_parameters(model):
+    """Extract per-muscle IMA parameters (prob, mean, sd) aligned with model.response."""
+    params = getattr(model, 'ima_params', {}) or {}
+    probs = []
+    means = []
+    sds = []
+    responses = getattr(model, 'response', [])
+    for r in responses:
+        p_match = None
+        if isinstance(params, dict):
+            if r in params:
+                p_match = params[r]
+            else:
+                for k, v in params.items():
+                    if str(k).strip().lower() == str(r).strip().lower():
+                        p_match = v
+                        break
+        if isinstance(p_match, dict):
+            p_val = float(p_match.get('prob', p_match.get('probability', 0.1)))
+            m_val = float(p_match.get('mean', 0.1))
+            s_val = float(p_match.get('sd', p_match.get('std', 1.0)))
+        else:
+            p_val = 0.1
+            m_val = 0.1
+            s_val = 1.0
+        probs.append(p_val)
+        means.append(m_val)
+        sds.append(s_val)
+    return jnp.array(probs), jnp.array(means), jnp.array(sds)
+
+
 class rlpkpk(BaseModel):
     """Rectified Logistic model implemented locally with hierarchical indexing fixes.
     Supports both TMS and SCS stimulation types."""
     def __init__(self, *args, is_scs=False, stim_type=None, **kw):
         super(rlpkpk, self).__init__(*args, **kw)
         self.use_mixture = False
+        self.use_ima = False
+        self.ima_params = {}
         config = kw.get('config', {})
         if stim_type is not None:
             self.is_scs = (stim_type.lower() == 'scs')
@@ -115,8 +148,22 @@ class rlpkpk(BaseModel):
                 c2_raw = pyro.sample(site.c2.raw, dist.HalfNormal(1))
                 c2 = pyro.deterministic(site.c2, c2_scale * c2_raw)
 
-        if self.use_mixture:
-            q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
+        if getattr(self, 'use_ima', False):
+            ima_probs, ima_means, ima_sds = get_ima_parameters(self)
+            with pyro.plate(site.num_response, self.num_response, dim=-1):
+                ima_const = pyro.sample(
+                    "ima_const",
+                    dist.TruncatedNormal(ima_means, ima_sds, low=0.)
+                )
+
+        if response is None:
+            q = 0.
+            p = jnp.zeros(self.num_response) if getattr(self, 'use_ima', False) else None
+        else:
+            if self.use_mixture:
+                q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
+            if getattr(self, 'use_ima', False):
+                p = ima_probs
 
         # Observation model
         with pyro.handlers.mask(mask=mask_obs):
@@ -129,23 +176,55 @@ class rlpkpk(BaseModel):
             )
             alpha, beta = self.gamma_likelihood(mu, c1[idx], c2[idx])
 
-            if self.use_mixture:
+            if getattr(self, 'use_ima', False):
+                mu_ima = pyro.deterministic("mu_ima", mu + ima_const)
+                alpha_ima, beta_ima = self.gamma_likelihood(mu_ima, c1[idx], c2[idx])
+
+            outlier_dist = dist.HalfNormal(scale=(g[idx] + h[idx]))
+
+            if self.use_mixture and getattr(self, 'use_ima', False):
+                w0 = (1.0 - q) * (1.0 - p)
+                w1 = (1.0 - q) * p
+                w2 = jnp.broadcast_to(q, w0.shape)
+                probs = jnp.broadcast_to(jnp.stack([w0, w1, w2], axis=-1), (num_data, self.num_response, 3))
+                obs_dist = dist.MixtureGeneral(
+                    dist.Categorical(probs=probs),
+                    [
+                        dist.Gamma(concentration=alpha, rate=beta),
+                        dist.Gamma(concentration=alpha_ima, rate=beta_ima),
+                        outlier_dist
+                    ]
+                )
+            elif getattr(self, 'use_ima', False):
+                w0 = 1.0 - p
+                w1 = p
+                probs = jnp.broadcast_to(jnp.stack([w0, w1], axis=-1), (num_data, self.num_response, 2))
+                obs_dist = dist.MixtureGeneral(
+                    dist.Categorical(probs=probs),
+                    [
+                        dist.Gamma(concentration=alpha, rate=beta),
+                        dist.Gamma(concentration=alpha_ima, rate=beta_ima)
+                    ]
+                )
+            elif self.use_mixture:
                 mixing_distribution = dist.Categorical(probs=jnp.stack([1 - q, q], axis=-1))
                 component_distributions = [
                     dist.Gamma(concentration=alpha, rate=beta),
-                    dist.HalfNormal(scale=(g[idx] + h[idx]))
+                    outlier_dist
                 ]
-                Mixture = dist.MixtureGeneral(mixing_distribution, component_distributions)
+                obs_dist = dist.MixtureGeneral(mixing_distribution, component_distributions)
+            else:
+                obs_dist = dist.Gamma(alpha, beta)
 
             with pyro.plate(site.num_response, self.num_response, dim=-1):
                 with pyro.plate(site.num_data, num_data, dim=-2):
                     y_ = pyro.sample(
                         site.obs,
-                        Mixture if self.use_mixture else dist.Gamma(alpha, beta),
+                        obs_dist,
                         obs=response
                     )
-                    if self.use_mixture:
-                        log_probs = Mixture.component_log_probs(y_)
+                    if self.use_mixture and not getattr(self, 'use_ima', False):
+                        log_probs = obs_dist.component_log_probs(y_)
                         pyro.deterministic("p", log_probs - jax.nn.logsumexp(log_probs, axis=-1, keepdims=True))
 
 
@@ -155,6 +234,8 @@ class rlpkpkSmall(BaseModel):
     def __init__(self, *args, is_scs=False, stim_type=None, **kw):
         super(rlpkpkSmall, self).__init__(*args, **kw)
         self.use_mixture = False
+        self.use_ima = False
+        self.ima_params = {}
         config = kw.get('config', {})
         if stim_type is not None:
             self.is_scs = (stim_type.lower() == 'scs')
@@ -213,8 +294,22 @@ class rlpkpkSmall(BaseModel):
                 c1 = pyro.sample(site.c1, dist.HalfNormal(5.))
                 c2 = pyro.sample(site.c2, dist.HalfNormal(.5))
 
-        if self.use_mixture:
-            q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
+        if getattr(self, 'use_ima', False):
+            ima_probs, ima_means, ima_sds = get_ima_parameters(self)
+            with pyro.plate(site.num_response, self.num_response, dim=-1):
+                ima_const = pyro.sample(
+                    "ima_const",
+                    dist.TruncatedNormal(ima_means, ima_sds, low=0.)
+                )
+
+        if response is None:
+            q = 0.
+            p = jnp.zeros(self.num_response) if getattr(self, 'use_ima', False) else None
+        else:
+            if self.use_mixture:
+                q = pyro.sample(site.outlier_prob, dist.Uniform(0., 0.01))
+            if getattr(self, 'use_ima', False):
+                p = ima_probs
 
         with pyro.handlers.mask(mask=mask_obs):
             mu = pyro.deterministic(
@@ -226,19 +321,51 @@ class rlpkpkSmall(BaseModel):
             )
             alpha, beta = self.gamma_likelihood(mu, c1[idx], c2[idx])
 
-            if self.use_mixture:
+            if getattr(self, 'use_ima', False):
+                mu_ima = pyro.deterministic("mu_ima", mu + ima_const)
+                alpha_ima, beta_ima = self.gamma_likelihood(mu_ima, c1[idx], c2[idx])
+
+            outlier_dist = dist.HalfNormal(scale=10.0)
+
+            if self.use_mixture and getattr(self, 'use_ima', False):
+                w0 = (1.0 - q) * (1.0 - p)
+                w1 = (1.0 - q) * p
+                w2 = jnp.broadcast_to(q, w0.shape)
+                probs = jnp.broadcast_to(jnp.stack([w0, w1, w2], axis=-1), (num_data, self.num_response, 3))
+                obs_dist = dist.MixtureGeneral(
+                    dist.Categorical(probs=probs),
+                    [
+                        dist.Gamma(concentration=alpha, rate=beta),
+                        dist.Gamma(concentration=alpha_ima, rate=beta_ima),
+                        outlier_dist
+                    ]
+                )
+            elif getattr(self, 'use_ima', False):
+                w0 = 1.0 - p
+                w1 = p
+                probs = jnp.broadcast_to(jnp.stack([w0, w1], axis=-1), (num_data, self.num_response, 2))
+                obs_dist = dist.MixtureGeneral(
+                    dist.Categorical(probs=probs),
+                    [
+                        dist.Gamma(concentration=alpha, rate=beta),
+                        dist.Gamma(concentration=alpha_ima, rate=beta_ima)
+                    ]
+                )
+            elif self.use_mixture:
                 mixing_distribution = dist.Categorical(probs=jnp.stack([1 - q, q], axis=-1))
                 component_distributions = [
                     dist.Gamma(concentration=alpha, rate=beta),
-                    dist.HalfNormal(scale=10.0)
+                    outlier_dist
                 ]
-                Mixture = dist.MixtureGeneral(mixing_distribution, component_distributions)
+                obs_dist = dist.MixtureGeneral(mixing_distribution, component_distributions)
+            else:
+                obs_dist = dist.Gamma(alpha, beta)
 
             with pyro.plate(site.num_response, self.num_response, dim=-1):
                 with pyro.plate(site.num_data, num_data, dim=-2):
                     pyro.sample(
                         site.obs,
-                        Mixture if self.use_mixture else dist.Gamma(alpha, beta),
+                        obs_dist,
                         obs=response
                     )
 
