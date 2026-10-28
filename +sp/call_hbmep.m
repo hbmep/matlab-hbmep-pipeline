@@ -49,7 +49,7 @@ if not(isfield(cfg_hbmep, 'num_samples')) || isempty(cfg_hbmep.num_samples)
     cfg_hbmep.num_samples = 400;
 end
 if not(isfield(cfg_hbmep, 'num_chains')) || isempty(cfg_hbmep.num_chains)
-    cfg_hbmep.num_chains = 4;
+    cfg_hbmep.num_chains = 1;
 end
 if not(isfield(cfg_hbmep, 'thinning')) || isempty(cfg_hbmep.thinning)
     cfg_hbmep.thinning = 1;
