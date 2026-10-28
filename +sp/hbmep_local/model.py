@@ -115,8 +115,8 @@ class rlpkpk(BaseModel):
         # Hyper-priors (differentiated for SCS vs TMS)
         is_scs = getattr(self, 'is_scs', False)
         if is_scs:
-            a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(5., 10., low=0))
-            a_scale = pyro.sample(site.a.scale, dist.HalfNormal(10.))
+            a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(10., 15., low=0))
+            a_scale = pyro.sample(site.a.scale, dist.HalfNormal(15.))
         else:
             a_loc = pyro.sample(site.a.loc, dist.TruncatedNormal(50., 50., low=0))
             a_scale = pyro.sample(site.a.scale, dist.HalfNormal(50.))
@@ -278,8 +278,8 @@ class rlpkpkSmall(BaseModel):
         # SCS vs TMS motor threshold prior parameterization
         is_scs = getattr(self, 'is_scs', False)
         if is_scs:
-            a_loc = 5.0
-            a_scale = 10.0
+            a_loc = 10.0
+            a_scale = 15.0
         else:
             a_loc = 50.0
             a_scale = 50.0

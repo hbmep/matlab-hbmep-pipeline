@@ -89,7 +89,7 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
 
     metric_label = "AUC (Area Under Curve)" if (model_name.startswith("rlauc") or "uvs" in str(postprocessing_helper.get('units_mepsize', '')).lower()) else "Peak-to-Peak (pk-pk)"
     stim_label = "SCS (Spinal Cord Stimulation)" if model.is_scs else "TMS (Transcranial Magnetic Stimulation)"
-    prior_a_desc = "mean=5.0, sd=10.0 [low=0]" if model.is_scs else "mean=50.0, sd=50.0 [low=0]"
+    prior_a_desc = "mean=10.0, sd=15.0 [low=0]" if model.is_scs else "mean=50.0, sd=50.0 [low=0]"
 
     print("=" * 65)
     print(f"  hbMEP Model Selected : {model_name}")
