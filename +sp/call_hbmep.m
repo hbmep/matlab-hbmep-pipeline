@@ -94,7 +94,7 @@ stim_type = char(cfg_hbmep.stim_type);
 for use_mixture = vec_mixture
     suffix = '';
     if use_mixture
-        suffix = [suffix '_with_mixture'];
+        suffix = [suffix '_mix'];
         str_mixture = '--use_mixture';
     else
         str_mixture = '';
