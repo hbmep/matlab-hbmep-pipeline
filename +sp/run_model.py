@@ -108,7 +108,9 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
     for f in model.features:
         df[f] = df[f].astype(np.int64)
 
-    inference_path = Path(cfg_hbmep.BUILD_DIR) / 'inference.pkl'
+    inference_path = Path(d_output) / 'inference.pkl'
+    if not inference_path.exists():
+        inference_path = Path(cfg_hbmep.BUILD_DIR) / 'inference.pkl'
     use_cache = False
     if inference_path.exists():
         try:
@@ -117,10 +119,11 @@ def main(p_csv, response, d_output, p_postproc, postprocessing_helper, p_hbmep_c
             if pkl_mtime >= csv_mtime:
                 with open(inference_path, "rb") as f:
                     cached_model, cached_mcmc, cached_posterior = pickle.load(f)
-                if type(cached_model).__name__ == model_name:
+                cached_name = type(cached_model).__name__
+                if cached_name == model_name or cached_name == f"{model_name}Small" or model_name == f"{cached_name}Small":
                     model, mcmc, posterior_samples = cached_model, cached_mcmc, cached_posterior
                     use_cache = True
-                    print(f"Loaded valid cached hbMEP inference ({model_name}) from {inference_path}")
+                    print(f"Loaded valid cached hbMEP inference ({cached_name}) from {inference_path}")
         except Exception as e:
             print(f"Warning: Failed to load cached inference ({e}), recomputing.")
             use_cache = False
