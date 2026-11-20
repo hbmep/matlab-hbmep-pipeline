@@ -138,6 +138,8 @@ end
 if not(isempty(time_zero_augment))
     assert(all(isfinite(time_zero_augment)), "?");
     mepsize_table.augmented(:) = false;
+    mepsize_table.aug_src_n_pulses(:) = NaN;       % temp: source-trial train info for augmented rows
+    mepsize_table.aug_src_train_dur_s(:) = NaN;    % (dropped after MEP size is computed)
 
     if ismember('intensity', mepsize_table.Properties.VariableNames)
         case_augment = double(mepsize_table.intensity) > 0;
@@ -181,6 +183,25 @@ if not(isempty(time_zero_augment))
     end
 
     orig_indices = find(case_augment);
+
+    % Record the source trial's pulse count / train duration so the augmented (single-window)
+    % baseline AUC can later be put on the same scale as real train trials.
+    for i_src = 1:numel(orig_indices)
+        s_src = ix_stim(orig_indices(i_src));
+        if orig_indices(i_src) < numel(ix_stim)
+            e_src = ix_stim(orig_indices(i_src) + 1) - 1;
+        else
+            e_src = height(raw_table);
+        end
+        p_src = all_p_trigs_all(all_p_trigs_all >= s_src & all_p_trigs_all <= e_src);
+        if numel(p_src) > 1
+            mepsize_table_augment_base.aug_src_n_pulses(i_src) = numel(p_src);
+            mepsize_table_augment_base.aug_src_train_dur_s(i_src) = (p_src(end) - p_src(1)) / fs;
+        else
+            mepsize_table_augment_base.aug_src_n_pulses(i_src) = 1;
+            mepsize_table_augment_base.aug_src_train_dur_s(i_src) = 0;
+        end
+    end
     aug_pi_all = cell(0, 1);
     t_min_slice_s = cfg_table.slice.t_min;
     t_max_size_s = cfg_table.slice.t_max_size;
@@ -434,6 +455,15 @@ for ix = 1:length(vec_channel_name)
                 else
                     auc_raw = 0;
                 end
+                % Put the single-window baseline AUC on the same scale as real train trials:
+                % real trials integrate (train_dur + t_max_size - t_min_size) and divide by N pulses.
+                % Without this, zeros are ~(window ratio) too large (e.g. ~2.9x for 20p @ 40 Hz).
+                src_n = mepsize_table.aug_src_n_pulses(j_tr);
+                src_dur = mepsize_table.aug_src_train_dur_s(j_tr);
+                if isfinite(src_n) && src_n >= 1 && isfinite(src_dur)
+                    t_single = cfg_table.slice.t_max_size - cfg_table.slice.t_min_size;
+                    auc_raw = auc_raw * ((src_dur + t_single) / t_single) / src_n;
+                end
                 mepsize_table.(str_ch)(j_tr) = auc_raw;
             else
                 p_idxs = trial_pulse_indices{j_tr};
@@ -488,6 +518,8 @@ if ~(is_train && is_auc)
     end
 end
 fprintf('done.\n');
+mepsize_table = removevars(mepsize_table, intersect({'aug_src_n_pulses', 'aug_src_train_dur_s'}, ...
+    mepsize_table.Properties.VariableNames));
 
 %% Figure visibility
 show_figures = false;
